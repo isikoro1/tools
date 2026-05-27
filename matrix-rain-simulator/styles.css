@@ -47,27 +47,9 @@ body {
   transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
 }
 
-.config-toggle {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  z-index: 2;
-  min-height: 38px;
-  padding: 0 14px;
-  border: 1px solid rgba(129, 249, 170, 0.36);
-  border-radius: 8px;
-  background: rgba(2, 9, 6, 0.72);
-  color: #eaffef;
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-  backdrop-filter: blur(12px);
-}
-
 .config-hidden .control-panel {
-  visibility: hidden;
+  display: none;
   opacity: 0;
-  transform: translateX(18px);
   pointer-events: none;
 }
 
@@ -142,6 +124,7 @@ input[type="range"] {
 }
 
 .color-row,
+.export-row,
 .toggle-row {
   display: flex;
   flex-wrap: wrap;
@@ -160,6 +143,38 @@ input[type="color"] {
   border-radius: 8px;
   padding: 4px;
   background: rgba(0, 0, 0, 0.42);
+}
+
+select,
+.action-button {
+  min-height: 38px;
+  border: 1px solid rgba(129, 249, 170, 0.24);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.42);
+  color: #eaffef;
+  font: inherit;
+}
+
+select {
+  width: 100%;
+  padding: 0 8px;
+}
+
+.small-field {
+  flex: 0 1 92px;
+}
+
+.action-button {
+  flex: 1 1 82px;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.status {
+  min-height: 18px;
+  margin: 8px 0 0;
+  color: #81f9aa;
+  font-size: 12px;
 }
 
 .toggle-row {

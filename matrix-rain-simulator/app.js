@@ -5,9 +5,11 @@ const controls = {
   characters: document.querySelector("#characters"),
   fontSize: document.querySelector("#fontSize"),
   speed: document.querySelector("#speed"),
+  speedLimit: document.querySelector("#speedLimit"),
   density: document.querySelector("#density"),
   trail: document.querySelector("#trail"),
   depth: document.querySelector("#depth"),
+  depthStrength: document.querySelector("#depthStrength"),
   variance: document.querySelector("#variance"),
   glow: document.querySelector("#glow"),
   textColor: document.querySelector("#textColor"),
@@ -16,7 +18,12 @@ const controls = {
   katakanaMode: document.querySelector("#katakanaMode"),
   paused: document.querySelector("#paused"),
   randomizeBtn: document.querySelector("#randomizeBtn"),
-  togglePanelBtn: document.querySelector("#togglePanelBtn"),
+  exportPngBtn: document.querySelector("#exportPngBtn"),
+  exportGifBtn: document.querySelector("#exportGifBtn"),
+  gifFps: document.querySelector("#gifFps"),
+  gifSeconds: document.querySelector("#gifSeconds"),
+  exportStatus: document.querySelector("#exportStatus"),
+  controlPanel: document.querySelector("#controlPanel"),
 };
 
 const katakana =
@@ -30,14 +37,18 @@ let dpr = 1;
 let layers = [];
 let lastFrame = performance.now();
 let accumulator = 0;
+let isExportingGif = false;
 
 function settings() {
+  const speedLimit = Number(controls.speedLimit.value);
   return {
     fontSize: Number(controls.fontSize.value),
-    speed: Number(controls.speed.value),
+    speed: Math.min(Number(controls.speed.value), speedLimit),
+    speedLimit,
     density: Number(controls.density.value) / 100,
     trail: Number(controls.trail.value),
     depth: Number(controls.depth.value),
+    depthStrength: Number(controls.depthStrength.value) / 100,
     variance: Number(controls.variance.value) / 100,
     glow: Number(controls.glow.value),
     textColor: controls.textColor.value,
@@ -50,11 +61,21 @@ function settings() {
 function buildCharacters() {
   const custom = controls.characters.value.trim();
   const base = custom.length ? custom : latin;
-  return controls.katakanaMode.checked ? `${base}${katakana}${katakana}${symbols}` : base;
+  const characters = controls.katakanaMode.checked ? `${base}${katakana}${katakana}${symbols}` : base;
+  return Array.from(characters, toFullWidth).join("");
+}
+
+function toFullWidth(char) {
+  const code = char.charCodeAt(0);
+  if (code === 0x20) return "\u3000";
+  if (code >= 0x21 && code <= 0x7e) return String.fromCharCode(code + 0xfee0);
+  return char.normalize("NFKC").replace(/[!-~]/g, (value) =>
+    String.fromCharCode(value.charCodeAt(0) + 0xfee0),
+  );
 }
 
 function randomChar(chars) {
-  return chars[Math.floor(Math.random() * chars.length)] || "0";
+  return chars[Math.floor(Math.random() * chars.length)] || "\uff10";
 }
 
 function randomBetween(min, max) {
@@ -64,11 +85,12 @@ function randomBetween(min, max) {
 function makeLayer(layerIndex, s) {
   const denominator = Math.max(1, s.depth - 1);
   const depthRatio = s.depth === 1 ? 1 : layerIndex / denominator;
-  const scale = 0.62 + depthRatio * 0.62;
-  const alpha = 0.18 + depthRatio * 0.82;
-  const speedScale = 0.45 + depthRatio * 0.95;
+  const depthAmount = s.depthStrength * depthRatio;
+  const scale = 1 - s.depthStrength * 0.22 + depthAmount * 0.32;
+  const alpha = 0.42 + depthAmount * 0.58;
+  const speedScale = 0.72 + depthAmount * 0.42;
   const fontSize = Math.max(8, Math.round(s.fontSize * scale));
-  const spacing = fontSize * randomBetween(0.88, 1.08);
+  const spacing = fontSize * randomBetween(0.95, 1.08);
   const count = Math.ceil(width / spacing) + 2;
 
   const layer = {
@@ -79,19 +101,19 @@ function makeLayer(layerIndex, s) {
     columns: [],
   };
 
-  layer.columns = Array.from({ length: count }, (_, index) => makeColumn(index, s, layer, false));
+  layer.columns = Array.from({ length: count }, (_, index) => makeColumn(index, s, layer));
   return layer;
 }
 
-function makeColumn(index, s, layer, startAbove = true) {
-  const varianceMin = 1 - s.variance * 0.55;
-  const varianceMax = 1 + s.variance * 1.2;
+function makeColumn(index, s, layer) {
+  const varianceMin = 1 - s.variance * 0.42;
+  const varianceMax = 1 + s.variance * 0.82;
 
   return {
-    x: index * layer.spacing + randomBetween(-layer.fontSize * 0.08, layer.fontSize * 0.08),
-    headY: startAbove ? -randomBetween(0, height * 0.72) : randomBetween(-height * 0.08, height),
+    x: index * layer.spacing + layer.spacing / 2,
+    headY: -layer.fontSize - randomBetween(0, layer.fontSize * 8),
     speedOffset: randomBetween(varianceMin, varianceMax) * layer.speedScale,
-    skip: Math.random() > s.density * (0.74 + layer.alpha * 0.32),
+    skip: Math.random() > s.density * (0.82 + layer.alpha * 0.18),
     residues: [],
   };
 }
@@ -121,11 +143,17 @@ function paintBackground(s) {
   ctx.fillRect(0, 0, width, height);
 }
 
+function prepareText(layer) {
+  ctx.font = `${layer.fontSize}px "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+}
+
 function drawResidue(residue, s, layer) {
   const age = Math.max(0, residue.life / residue.maxLife);
   const alpha = Math.max(0.04, age ** 1.45) * layer.alpha;
   ctx.globalAlpha = alpha;
-  ctx.shadowBlur = Math.min(1.5, s.glow * 0.1);
+  ctx.shadowBlur = Math.min(1.4, s.glow * 0.08);
   ctx.shadowColor = s.textColor;
   ctx.fillStyle = s.textColor;
   ctx.fillText(residue.char, residue.x, residue.y);
@@ -142,34 +170,28 @@ function drawHead(column, s, layer) {
 }
 
 function drawColumn(column, s, layer) {
-  if (column.skip) {
-    if (Math.random() < 0.004 + layer.alpha * 0.004) column.skip = false;
-    return;
-  }
-
-  ctx.font = `${layer.fontSize}px "SFMono-Regular", Consolas, monospace`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "top";
-
+  prepareText(layer);
   column.residues.forEach((residue) => drawResidue(residue, s, layer));
   drawHead(column, s, layer);
   ctx.globalAlpha = 1;
 }
 
 function stepColumn(column, s, layer, index) {
-  const baseStep = Math.max(1, layer.fontSize * 0.62);
+  const baseStep = Math.max(1, layer.fontSize * 0.54);
   const previousHeadY = column.headY;
-
   const maxLife = Math.max(5, Math.round(s.trail * layer.speedScale * column.speedOffset));
-  column.residues.unshift({
-    x: column.x,
-    y: previousHeadY,
-    char: randomChar(s.characters),
-    life: maxLife,
-    maxLife,
-  });
-  column.headY += baseStep * column.speedOffset;
 
+  if (previousHeadY >= -layer.fontSize && previousHeadY <= height + layer.fontSize) {
+    column.residues.unshift({
+      x: column.x,
+      y: previousHeadY,
+      char: randomChar(s.characters),
+      life: maxLife,
+      maxLife,
+    });
+  }
+
+  column.headY += baseStep * column.speedOffset;
   column.residues = column.residues
     .map((residue) => ({ ...residue, life: residue.life - 1 }))
     .filter((residue) => residue.life > 0);
@@ -180,27 +202,35 @@ function stepColumn(column, s, layer, index) {
   }
 
   if (column.headY > height + maxLife * layer.fontSize) {
-    layer.columns[index] = makeColumn(index, s, layer, true);
+    layer.columns[index] = makeColumn(index, s, layer);
   }
 }
 
-function frame(now) {
+function tickRain() {
   const s = settings();
+      paintBackground(s);
+      layers.forEach((layer) => {
+        layer.columns.forEach((column, index) => {
+          if (column.skip) {
+            if (Math.random() < 0.004 + layer.alpha * 0.004) column.skip = false;
+            return;
+          }
+          drawColumn(column, s, layer);
+          stepColumn(column, s, layer, index);
+        });
+  });
+}
+
+function frame(now) {
   const elapsed = now - lastFrame;
   lastFrame = now;
 
   if (!controls.paused.checked) {
     accumulator += elapsed;
-    const frameInterval = Math.max(16, 1000 / s.speed);
+    const frameInterval = Math.max(16, 1000 / settings().speed);
 
     if (accumulator >= frameInterval) {
-      paintBackground(s);
-      layers.forEach((layer) => {
-        layer.columns.forEach((column, index) => {
-          drawColumn(column, s, layer);
-          stepColumn(column, s, layer, index);
-        });
-      });
+      tickRain();
       accumulator = 0;
     }
   }
@@ -220,19 +250,217 @@ function randomize() {
   controls.headColor.value = palette[1];
   controls.backgroundColor.value = palette[2];
   controls.fontSize.value = String(12 + Math.floor(Math.random() * 17));
-  controls.speed.value = String(7 + Math.floor(Math.random() * 16));
+  controls.speedLimit.value = String(12 + Math.floor(Math.random() * 11));
+  controls.speed.value = String(7 + Math.floor(Math.random() * Number(controls.speedLimit.value - 6)));
   controls.density.value = String(58 + Math.floor(Math.random() * 40));
   controls.trail.value = String(16 + Math.floor(Math.random() * 18));
-  controls.depth.value = String(3 + Math.floor(Math.random() * 3));
-  controls.variance.value = String(35 + Math.floor(Math.random() * 55));
+  controls.depth.value = String(1 + Math.floor(Math.random() * 3));
+  controls.depthStrength.value = String(18 + Math.floor(Math.random() * 42));
+  controls.variance.value = String(25 + Math.floor(Math.random() * 45));
   controls.glow.value = String(2 + Math.floor(Math.random() * 7));
+  updateSpeedRange();
   resetRain();
 }
 
 function togglePanel() {
-  const hidden = document.body.classList.toggle("config-hidden");
-  controls.togglePanelBtn.setAttribute("aria-expanded", String(!hidden));
-  controls.togglePanelBtn.textContent = hidden ? "\u8a2d\u5b9a\u3092\u8868\u793a" : "\u8a2d\u5b9a\u3092\u96a0\u3059";
+  document.body.classList.toggle("config-hidden");
+}
+
+function updateSpeedRange() {
+  controls.speed.max = controls.speedLimit.value;
+  if (Number(controls.speed.value) > Number(controls.speedLimit.value)) {
+    controls.speed.value = controls.speedLimit.value;
+  }
+}
+
+function downloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportPng() {
+  canvas.toBlob((blob) => {
+    if (blob) downloadBlob(blob, "matrix-rain.png");
+  }, "image/png");
+}
+
+async function exportGif() {
+  if (isExportingGif) return;
+  isExportingGif = true;
+  controls.exportGifBtn.disabled = true;
+  controls.exportStatus.textContent = "GIF rendering...";
+
+  const fps = Number(controls.gifFps.value);
+  const seconds = Number(controls.gifSeconds.value);
+  const frameCount = Math.max(1, Math.round(fps * seconds));
+  const delay = Math.round(100 / fps);
+  const exportCanvas = document.createElement("canvas");
+  const maxWidth = 720;
+  const scale = Math.min(1, maxWidth / canvas.width);
+  exportCanvas.width = Math.max(1, Math.round(canvas.width * scale));
+  exportCanvas.height = Math.max(1, Math.round(canvas.height * scale));
+  const exportCtx = exportCanvas.getContext("2d", { willReadFrequently: true });
+  const frames = [];
+
+  for (let i = 0; i < frameCount; i += 1) {
+    tickRain();
+    exportCtx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+    frames.push(exportCtx.getImageData(0, 0, exportCanvas.width, exportCanvas.height));
+    controls.exportStatus.textContent = `GIF ${i + 1}/${frameCount}`;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  const blob = encodeGif(frames, delay);
+  downloadBlob(blob, "matrix-rain.gif");
+  controls.exportStatus.textContent = "GIF saved";
+  controls.exportGifBtn.disabled = false;
+  isExportingGif = false;
+}
+
+function encodeGif(frames, delay) {
+  const width = frames[0].width;
+  const height = frames[0].height;
+  const palette = makePalette();
+  const bytes = [];
+  const write = (...values) => bytes.push(...values);
+  const writeString = (value) => Array.from(value).forEach((char) => write(char.charCodeAt(0)));
+  const writeShort = (value) => write(value & 255, (value >> 8) & 255);
+
+  writeString("GIF89a");
+  writeShort(width);
+  writeShort(height);
+  write(0xf3, 0, 0);
+  palette.forEach((color) => write(color[0], color[1], color[2]));
+  write(0x21, 0xff, 0x0b);
+  writeString("NETSCAPE2.0");
+  write(0x03, 0x01);
+  writeShort(0);
+  write(0);
+
+  frames.forEach((frame) => {
+    write(0x21, 0xf9, 0x04, 0x00);
+    writeShort(delay);
+    write(0, 0);
+    write(0x2c);
+    writeShort(0);
+    writeShort(0);
+    writeShort(width);
+    writeShort(height);
+    write(0);
+    write(4);
+    writeSubBlocks(bytes, lzwEncode(indexPixels(frame.data, palette), 4));
+  });
+
+  write(0x3b);
+  return new Blob([new Uint8Array(bytes)], { type: "image/gif" });
+}
+
+function makePalette() {
+  const text = hexToRgb(controls.textColor.value);
+  const head = hexToRgb(controls.headColor.value);
+  const bg = hexToRgb(controls.backgroundColor.value);
+  const palette = [bg];
+  for (let i = 1; i <= 11; i += 1) palette.push(mix(bg, text, i / 11));
+  palette.push(mix(text, head, 0.45), mix(text, head, 0.7), head, [255, 255, 255]);
+  return palette.slice(0, 16);
+}
+
+function hexToRgb(hex) {
+  const value = Number.parseInt(hex.slice(1), 16);
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+}
+
+function mix(a, b, amount) {
+  return a.map((value, index) => Math.round(value + (b[index] - value) * amount));
+}
+
+function indexPixels(data, palette) {
+  const indexed = new Uint8Array(data.length / 4);
+  for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
+    let best = 0;
+    let bestDistance = Infinity;
+    for (let c = 0; c < palette.length; c += 1) {
+      const color = palette[c];
+      const dr = data[i] - color[0];
+      const dg = data[i + 1] - color[1];
+      const db = data[i + 2] - color[2];
+      const distance = dr * dr + dg * dg + db * db;
+      if (distance < bestDistance) {
+        best = c;
+        bestDistance = distance;
+      }
+    }
+    indexed[p] = best;
+  }
+  return indexed;
+}
+
+function lzwEncode(indices, minCodeSize) {
+  const clearCode = 1 << minCodeSize;
+  const endCode = clearCode + 1;
+  let codeSize = minCodeSize + 1;
+  let nextCode = endCode + 1;
+  let dict = new Map();
+  const output = [];
+  let bitBuffer = 0;
+  let bitCount = 0;
+
+  function resetDict() {
+    dict = new Map();
+    for (let i = 0; i < clearCode; i += 1) dict.set(String(i), i);
+    codeSize = minCodeSize + 1;
+    nextCode = endCode + 1;
+  }
+
+  function emit(code) {
+    bitBuffer |= code << bitCount;
+    bitCount += codeSize;
+    while (bitCount >= 8) {
+      output.push(bitBuffer & 255);
+      bitBuffer >>= 8;
+      bitCount -= 8;
+    }
+  }
+
+  resetDict();
+  emit(clearCode);
+  let phrase = String(indices[0]);
+
+  for (let i = 1; i < indices.length; i += 1) {
+    const current = String(indices[i]);
+    const combo = `${phrase},${current}`;
+    if (dict.has(combo)) {
+      phrase = combo;
+    } else {
+      emit(dict.get(phrase));
+      if (nextCode < 4096) {
+        dict.set(combo, nextCode);
+        nextCode += 1;
+        if (nextCode === 1 << codeSize && codeSize < 12) codeSize += 1;
+      } else {
+        emit(clearCode);
+        resetDict();
+      }
+      phrase = current;
+    }
+  }
+
+  emit(dict.get(phrase));
+  emit(endCode);
+  if (bitCount > 0) output.push(bitBuffer & 255);
+  return output;
+}
+
+function writeSubBlocks(bytes, data) {
+  for (let i = 0; i < data.length; i += 255) {
+    const block = data.slice(i, i + 255);
+    bytes.push(block.length, ...block);
+  }
+  bytes.push(0);
 }
 
 [
@@ -240,15 +468,21 @@ function togglePanel() {
   controls.density,
   controls.trail,
   controls.depth,
+  controls.depthStrength,
   controls.variance,
   controls.characters,
   controls.katakanaMode,
   controls.backgroundColor,
 ].forEach((control) => control.addEventListener("input", resetRain));
 
+controls.speedLimit.addEventListener("input", updateSpeedRange);
 controls.randomizeBtn.addEventListener("click", randomize);
-controls.togglePanelBtn.addEventListener("click", togglePanel);
+controls.exportPngBtn.addEventListener("click", exportPng);
+controls.exportGifBtn.addEventListener("click", exportGif);
+controls.controlPanel.addEventListener("click", (event) => event.stopPropagation());
+document.body.addEventListener("click", togglePanel);
 window.addEventListener("resize", resize);
 
+updateSpeedRange();
 resize();
 requestAnimationFrame(frame);

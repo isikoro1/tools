@@ -10,17 +10,13 @@
     <main class="app-shell">
       <canvas id="rainCanvas" aria-label="Matrix style falling text animation"></canvas>
 
-      <button id="togglePanelBtn" class="config-toggle" type="button" aria-expanded="true" aria-controls="controlPanel">
-        &#x8a2d;&#x5b9a;&#x3092;&#x96a0;&#x3059;
-      </button>
-
       <section id="controlPanel" class="control-panel" aria-label="Matrix rain settings">
         <div class="panel-header">
           <div>
             <p class="kicker">Matrix Rain</p>
             <h1>&#x30de;&#x30c8;&#x30ea;&#x30c3;&#x30af;&#x30b9;&#x306e;&#x30a2;&#x30ec;&#x30b7;&#x30df;&#x30e5;&#x30ec;&#x30fc;&#x30bf;&#x30fc;</h1>
           </div>
-          <button id="randomizeBtn" class="icon-button" type="button" title="&#x30e9;&#x30f3;&#x30c0;&#x30e0;&#x8a2d;&#x5b9a;">↻</button>
+          <button id="randomizeBtn" class="icon-button" type="button" title="&#x30e9;&#x30f3;&#x30c0;&#x30e0;&#x8a2d;&#x5b9a;">R</button>
         </div>
 
         <label class="field">
@@ -35,7 +31,15 @@
           </label>
           <label class="field">
             <span>&#x843d;&#x4e0b;&#x901f;&#x5ea6;</span>
-            <input id="speed" type="range" min="2" max="28" value="12" />
+            <input id="speed" type="range" min="2" max="20" value="10" />
+          </label>
+          <label class="field">
+            <span>&#x901f;&#x5ea6;&#x4e0a;&#x9650;</span>
+            <input id="speedLimit" type="range" min="6" max="28" value="16" />
+          </label>
+          <label class="field">
+            <span>&#x901f;&#x5ea6;&#x306e;&#x3070;&#x3089;&#x3064;&#x304d;</span>
+            <input id="variance" type="range" min="0" max="100" value="44" />
           </label>
           <label class="field">
             <span>&#x5bc6;&#x5ea6;</span>
@@ -46,12 +50,12 @@
             <input id="trail" type="range" min="6" max="38" value="22" />
           </label>
           <label class="field">
-            <span>&#x5965;&#x884c;&#x304d;</span>
-            <input id="depth" type="range" min="1" max="5" value="4" />
+            <span>&#x5965;&#x884c;&#x304d;&#x306e;&#x6570;</span>
+            <input id="depth" type="range" min="1" max="3" value="2" />
           </label>
           <label class="field">
-            <span>&#x901f;&#x5ea6;&#x306e;&#x3070;&#x3089;&#x3064;&#x304d;</span>
-            <input id="variance" type="range" min="0" max="100" value="58" />
+            <span>&#x5965;&#x884c;&#x304d;&#x306e;&#x5f37;&#x3055;</span>
+            <input id="depthStrength" type="range" min="0" max="100" value="36" />
           </label>
           <label class="field">
             <span>&#x5149;&#x5f69;</span>
@@ -74,10 +78,34 @@
           </label>
         </div>
 
+        <div class="export-row">
+          <label class="field small-field">
+            <span>GIF FPS</span>
+            <select id="gifFps">
+              <option value="8">8</option>
+              <option value="12" selected>12</option>
+              <option value="16">16</option>
+              <option value="24">24</option>
+            </select>
+          </label>
+          <label class="field small-field">
+            <span>GIF sec</span>
+            <select id="gifSeconds">
+              <option value="1.5">1.5</option>
+              <option value="2" selected>2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </label>
+          <button id="exportPngBtn" class="action-button" type="button">PNG</button>
+          <button id="exportGifBtn" class="action-button" type="button">GIF</button>
+        </div>
+
         <div class="toggle-row">
           <label><input id="katakanaMode" type="checkbox" checked /> &#x30ab;&#x30bf;&#x30ab;&#x30ca;&#x591a;&#x3081;</label>
           <label><input id="paused" type="checkbox" /> &#x4e00;&#x6642;&#x505c;&#x6b62;</label>
         </div>
+        <p id="exportStatus" class="status" aria-live="polite"></p>
       </section>
     </main>
 
