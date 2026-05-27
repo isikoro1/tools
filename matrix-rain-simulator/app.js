@@ -122,7 +122,7 @@ function settings() {
     speedMax,
     density: Number(controls.density.value) / 100,
     trail: Number(controls.trail.value),
-    rowSpacing: Number(controls.rowSpacing.value) / 100,
+    rowSpacing: Math.max(8, Number(controls.rowSpacing.value)) / 100,
     depth: Number(controls.depth.value),
     depthStrength: Number(controls.depthStrength.value) / 100,
     variance: Number(controls.variance.value) / 100,
