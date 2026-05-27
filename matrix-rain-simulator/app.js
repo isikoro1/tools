@@ -577,31 +577,36 @@ async function exportGif() {
   controls.exportGifBtn.disabled = true;
   controls.exportStatus.textContent = "GIF rendering...";
 
-  const fps = Number(controls.gifFps.value);
-  const seconds = Number(controls.gifSeconds.value);
-  const frameCount = Math.max(1, Math.round(fps * seconds));
-  const delay = Math.round(100 / fps);
-  const exportCanvas = document.createElement("canvas");
-  const maxWidth = 720;
-  const scale = Math.min(1, maxWidth / canvas.width);
-  exportCanvas.width = Math.max(1, Math.round(canvas.width * scale));
-  exportCanvas.height = Math.max(1, Math.round(canvas.height * scale));
-  const exportCtx = exportCanvas.getContext("2d", { willReadFrequently: true });
-  const frames = [];
+  try {
+    const fps = Number(controls.gifFps.value);
+    const seconds = Number(controls.gifSeconds.value);
+    const frameCount = Math.max(1, Math.round(fps * seconds));
+    const delay = Math.max(2, Math.round(100 / fps));
+    const exportCanvas = document.createElement("canvas");
+    const maxWidth = frameCount > 300 ? 420 : frameCount > 180 ? 540 : 720;
+    const scale = Math.min(1, maxWidth / canvas.width);
+    exportCanvas.width = Math.max(1, Math.round(canvas.width * scale));
+    exportCanvas.height = Math.max(1, Math.round(canvas.height * scale));
+    const exportCtx = exportCanvas.getContext("2d", { willReadFrequently: true });
+    const frames = [];
 
-  for (let i = 0; i < frameCount; i += 1) {
-    tickRain(1 / fps);
-    exportCtx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
-    frames.push(exportCtx.getImageData(0, 0, exportCanvas.width, exportCanvas.height));
-    controls.exportStatus.textContent = `GIF ${i + 1}/${frameCount}`;
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    for (let i = 0; i < frameCount; i += 1) {
+      tickRain(1 / fps);
+      exportCtx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+      frames.push(exportCtx.getImageData(0, 0, exportCanvas.width, exportCanvas.height));
+      controls.exportStatus.textContent = `GIF ${i + 1}/${frameCount}`;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    const blob = encodeGif(frames, delay);
+    downloadBlob(blob, "matrix-rain.gif");
+    controls.exportStatus.textContent = "GIF saved";
+  } catch {
+    controls.exportStatus.textContent = "GIF failed";
+  } finally {
+    controls.exportGifBtn.disabled = false;
+    isExportingGif = false;
   }
-
-  const blob = encodeGif(frames, delay);
-  downloadBlob(blob, "matrix-rain.gif");
-  controls.exportStatus.textContent = "GIF saved";
-  controls.exportGifBtn.disabled = false;
-  isExportingGif = false;
 }
 
 function encodeGif(frames, delay) {
