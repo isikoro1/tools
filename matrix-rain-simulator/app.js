@@ -26,6 +26,7 @@ const controls = {
   headColor: document.querySelector("#headColor"),
   backgroundColor: document.querySelector("#backgroundColor"),
   paused: document.querySelector("#paused"),
+  fullscreenBtn: document.querySelector("#fullscreenBtn"),
   defaultBtn: document.querySelector("#defaultBtn"),
   randomizeBtn: document.querySelector("#randomizeBtn"),
   exportPngBtn: document.querySelector("#exportPngBtn"),
@@ -358,6 +359,15 @@ function stepSkippedColumn(column, s, layer, index, elapsedSeconds) {
   }
 }
 
+function maxResidueCount(column, s, layer) {
+  const minCps = Math.max(0.1, s.speedMin * layer.speedScale);
+  const maxCps = Math.max(minCps, s.speedMax * (1 + s.variance * 2.8) * layer.speedScale);
+  const speedRatio = Math.min(1, Math.max(0, (column.cps - minCps) / (maxCps - minCps || 1)));
+  const slowPenalty = 0.18 + speedRatio * 0.82;
+  const baseCount = Math.ceil(Math.max(0.1, s.trail / 10) * column.cps);
+  return Math.max(1, Math.min(96, Math.round(baseCount * slowPenalty) + 1));
+}
+
 function stepColumn(column, s, layer, index, elapsedSeconds) {
   if (column.startDelay > 0) {
     column.startDelay -= elapsedSeconds * column.cps;
@@ -384,7 +394,7 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
         life: maxLife,
         maxLife,
       });
-      const maxResidues = Math.min(96, Math.ceil(maxLife * column.cps) + 2);
+      const maxResidues = maxResidueCount(column, s, layer);
       if (column.residues.length > maxResidues) {
         column.residues.length = maxResidues;
       }
@@ -506,6 +516,26 @@ function applyConfig(config) {
 function resetDefaults() {
   applyConfig(defaultConfig);
   controls.exportStatus.textContent = "Defaults loaded";
+}
+
+async function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else if (document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen();
+    } else {
+      controls.exportStatus.textContent = "Fullscreen unsupported";
+    }
+  } catch {
+    controls.exportStatus.textContent = "Fullscreen failed";
+  }
+}
+
+function syncFullscreenButton() {
+  controls.fullscreenBtn.textContent = document.fullscreenElement ? "W" : "F";
+  controls.fullscreenBtn.title = document.fullscreenElement ? "\u30a6\u30a3\u30f3\u30c9\u30a6" : "\u5168\u753b\u9762";
+  resize();
 }
 
 function saveJson() {
@@ -766,6 +796,7 @@ controls.speedMax.addEventListener("input", () => {
   normalizeSpeedBounds();
   resetRain();
 });
+controls.fullscreenBtn.addEventListener("click", toggleFullscreen);
 controls.defaultBtn.addEventListener("click", resetDefaults);
 controls.randomizeBtn.addEventListener("click", randomize);
 controls.exportPngBtn.addEventListener("click", exportPng);
@@ -778,6 +809,7 @@ controls.loadJsonInput.addEventListener("change", () => {
 });
 controls.controlPanel.addEventListener("click", (event) => event.stopPropagation());
 document.body.addEventListener("click", togglePanel);
+document.addEventListener("fullscreenchange", syncFullscreenButton);
 window.addEventListener("resize", resize);
 
 renderPresetOptions("matrix");
