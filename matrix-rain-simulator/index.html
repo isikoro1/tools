@@ -11,76 +11,72 @@
       <canvas id="rainCanvas" aria-label="Matrix style falling text animation"></canvas>
 
       <button id="togglePanelBtn" class="config-toggle" type="button" aria-expanded="true" aria-controls="controlPanel">
-        設定を隠す
+        &#x8a2d;&#x5b9a;&#x3092;&#x96a0;&#x3059;
       </button>
 
       <section id="controlPanel" class="control-panel" aria-label="Matrix rain settings">
         <div class="panel-header">
           <div>
             <p class="kicker">Matrix Rain</p>
-            <h1>マトリックスのアレシミュレーター</h1>
+            <h1>&#x30de;&#x30c8;&#x30ea;&#x30c3;&#x30af;&#x30b9;&#x306e;&#x30a2;&#x30ec;&#x30b7;&#x30df;&#x30e5;&#x30ec;&#x30fc;&#x30bf;&#x30fc;</h1>
           </div>
-          <button id="randomizeBtn" class="icon-button" type="button" title="ランダム設定">↻</button>
+          <button id="randomizeBtn" class="icon-button" type="button" title="&#x30e9;&#x30f3;&#x30c0;&#x30e0;&#x8a2d;&#x5b9a;">↻</button>
         </div>
 
         <label class="field">
-          <span>落とす文字</span>
-          <textarea id="characters" rows="4" spellcheck="false">ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789アイウエオカキクケコサシスセソタチツテトナニヌネノ</textarea>
+          <span>&#x843d;&#x3068;&#x3059;&#x6587;&#x5b57;</span>
+          <textarea id="characters" rows="4" spellcheck="false">ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789&#x30a2;&#x30a4;&#x30a6;&#x30a8;&#x30aa;&#x30ab;&#x30ad;&#x30af;&#x30b1;&#x30b3;&#x30b5;&#x30b7;&#x30b9;&#x30bb;&#x30bd;&#x30bf;&#x30c1;&#x30c4;&#x30c6;&#x30c8;&#x30ca;&#x30cb;&#x30cc;&#x30cd;&#x30ce;</textarea>
         </label>
 
         <div class="control-grid">
           <label class="field">
-            <span>文字サイズ</span>
+            <span>&#x6587;&#x5b57;&#x30b5;&#x30a4;&#x30ba;</span>
             <input id="fontSize" type="range" min="10" max="34" value="18" />
           </label>
           <label class="field">
-            <span>落下速度</span>
+            <span>&#x843d;&#x4e0b;&#x901f;&#x5ea6;</span>
             <input id="speed" type="range" min="2" max="28" value="12" />
           </label>
           <label class="field">
-            <span>密度</span>
+            <span>&#x5bc6;&#x5ea6;</span>
             <input id="density" type="range" min="25" max="100" value="82" />
           </label>
           <label class="field">
-            <span>残像</span>
+            <span>&#x6b8b;&#x50cf;</span>
             <input id="trail" type="range" min="6" max="38" value="22" />
           </label>
           <label class="field">
-            <span>奥行き</span>
+            <span>&#x5965;&#x884c;&#x304d;</span>
             <input id="depth" type="range" min="1" max="5" value="4" />
           </label>
           <label class="field">
-            <span>速度のばらつき</span>
+            <span>&#x901f;&#x5ea6;&#x306e;&#x3070;&#x3089;&#x3064;&#x304d;</span>
             <input id="variance" type="range" min="0" max="100" value="58" />
           </label>
           <label class="field">
-            <span>揺らぎ</span>
-            <input id="jitter" type="range" min="0" max="100" value="16" />
-          </label>
-          <label class="field">
-            <span>光彩</span>
+            <span>&#x5149;&#x5f69;</span>
             <input id="glow" type="range" min="0" max="12" value="4" />
           </label>
         </div>
 
         <div class="color-row">
           <label class="field color-field">
-            <span>文字色</span>
+            <span>&#x6587;&#x5b57;&#x8272;</span>
             <input id="textColor" type="color" value="#00ff66" />
           </label>
           <label class="field color-field">
-            <span>先頭色</span>
+            <span>&#x5148;&#x982d;&#x8272;</span>
             <input id="headColor" type="color" value="#ddffdd" />
           </label>
           <label class="field color-field">
-            <span>背景</span>
+            <span>&#x80cc;&#x666f;</span>
             <input id="backgroundColor" type="color" value="#000000" />
           </label>
         </div>
 
         <div class="toggle-row">
-          <label><input id="katakanaMode" type="checkbox" checked /> カタカナ多め</label>
-          <label><input id="paused" type="checkbox" /> 一時停止</label>
+          <label><input id="katakanaMode" type="checkbox" checked /> &#x30ab;&#x30bf;&#x30ab;&#x30ca;&#x591a;&#x3081;</label>
+          <label><input id="paused" type="checkbox" /> &#x4e00;&#x6642;&#x505c;&#x6b62;</label>
         </div>
       </section>
     </main>

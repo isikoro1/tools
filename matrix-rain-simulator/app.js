@@ -9,7 +9,6 @@ const controls = {
   trail: document.querySelector("#trail"),
   depth: document.querySelector("#depth"),
   variance: document.querySelector("#variance"),
-  jitter: document.querySelector("#jitter"),
   glow: document.querySelector("#glow"),
   textColor: document.querySelector("#textColor"),
   headColor: document.querySelector("#headColor"),
@@ -40,7 +39,6 @@ function settings() {
     trail: Number(controls.trail.value),
     depth: Number(controls.depth.value),
     variance: Number(controls.variance.value) / 100,
-    jitter: Number(controls.jitter.value) / 100,
     glow: Number(controls.glow.value),
     textColor: controls.textColor.value,
     headColor: controls.headColor.value,
@@ -65,40 +63,36 @@ function randomBetween(min, max) {
 
 function makeLayer(layerIndex, s) {
   const denominator = Math.max(1, s.depth - 1);
-  const depthRatio = denominator === 0 ? 1 : layerIndex / denominator;
+  const depthRatio = s.depth === 1 ? 1 : layerIndex / denominator;
   const scale = 0.62 + depthRatio * 0.62;
-  const alpha = 0.2 + depthRatio * 0.82;
-  const speedScale = 0.45 + depthRatio * 0.92;
+  const alpha = 0.18 + depthRatio * 0.82;
+  const speedScale = 0.45 + depthRatio * 0.95;
   const fontSize = Math.max(8, Math.round(s.fontSize * scale));
-  const spacing = fontSize * randomBetween(0.86, 1.08);
+  const spacing = fontSize * randomBetween(0.88, 1.08);
   const count = Math.ceil(width / spacing) + 2;
 
-  return {
+  const layer = {
     alpha,
     fontSize,
     spacing,
     speedScale,
-    columns: Array.from({ length: count }, (_, index) =>
-      makeColumn(index, s, { alpha, fontSize, speedScale, spacing }, false),
-    ),
+    columns: [],
   };
+
+  layer.columns = Array.from({ length: count }, (_, index) => makeColumn(index, s, layer, false));
+  return layer;
 }
 
 function makeColumn(index, s, layer, startAbove = true) {
   const varianceMin = 1 - s.variance * 0.55;
   const varianceMax = 1 + s.variance * 1.2;
-  const streamLength = Math.max(
-    7,
-    Math.round(s.trail * layer.speedScale * randomBetween(0.78, 1.42)),
-  );
 
   return {
-    x: index * layer.spacing + randomBetween(-layer.fontSize * 0.22, layer.fontSize * 0.22),
-    y: startAbove ? -randomBetween(0, height * 0.72) : randomBetween(-height * 0.08, height),
+    x: index * layer.spacing + randomBetween(-layer.fontSize * 0.08, layer.fontSize * 0.08),
+    headY: startAbove ? -randomBetween(0, height * 0.72) : randomBetween(-height * 0.08, height),
     speedOffset: randomBetween(varianceMin, varianceMax) * layer.speedScale,
     skip: Math.random() > s.density * (0.74 + layer.alpha * 0.32),
-    glyphs: Array.from({ length: streamLength }, () => randomChar(s.characters)),
-    drift: randomBetween(-s.jitter, s.jitter) * layer.fontSize,
+    residues: [],
   };
 }
 
@@ -121,10 +115,30 @@ function resetRain() {
 }
 
 function paintBackground(s) {
-  ctx.shadowBlur = 0;
   ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
   ctx.fillStyle = s.backgroundColor;
   ctx.fillRect(0, 0, width, height);
+}
+
+function drawResidue(residue, s, layer) {
+  const age = Math.max(0, residue.life / residue.maxLife);
+  const alpha = Math.max(0.04, age ** 1.45) * layer.alpha;
+  ctx.globalAlpha = alpha;
+  ctx.shadowBlur = Math.min(1.5, s.glow * 0.1);
+  ctx.shadowColor = s.textColor;
+  ctx.fillStyle = s.textColor;
+  ctx.fillText(residue.char, residue.x, residue.y);
+}
+
+function drawHead(column, s, layer) {
+  if (column.headY < -layer.fontSize || column.headY > height + layer.fontSize) return;
+
+  ctx.globalAlpha = layer.alpha;
+  ctx.shadowBlur = s.glow * layer.alpha;
+  ctx.shadowColor = s.headColor;
+  ctx.fillStyle = s.headColor;
+  ctx.fillText(randomChar(s.characters), column.x, column.headY);
 }
 
 function drawColumn(column, s, layer) {
@@ -137,47 +151,35 @@ function drawColumn(column, s, layer) {
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
 
-  for (let i = column.glyphs.length - 1; i >= 0; i -= 1) {
-    const y = column.y - i * layer.fontSize;
-    if (y < -layer.fontSize || y > height + layer.fontSize) continue;
-
-    const depth = i / Math.max(1, column.glyphs.length - 1);
-    const tailAlpha = Math.max(0.12, (1 - depth) ** 1.45) * layer.alpha;
-    const isHead = i === 0;
-    const x = column.x + column.drift;
-
-    ctx.globalAlpha = isHead ? layer.alpha : tailAlpha;
-    ctx.shadowBlur = isHead ? s.glow * layer.alpha : Math.min(1.5, s.glow * 0.12);
-    ctx.shadowColor = isHead ? s.headColor : s.textColor;
-    ctx.fillStyle = isHead ? s.headColor : s.textColor;
-    ctx.fillText(column.glyphs[i], x, y);
-
-    if (isHead && layer.alpha > 0.7) {
-      ctx.globalAlpha = 0.72;
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = s.textColor;
-      ctx.fillText(column.glyphs[i], x, y);
-    }
-  }
-
+  column.residues.forEach((residue) => drawResidue(residue, s, layer));
+  drawHead(column, s, layer);
   ctx.globalAlpha = 1;
 }
 
 function stepColumn(column, s, layer, index) {
   const baseStep = Math.max(1, layer.fontSize * 0.62);
-  column.y += baseStep * column.speedOffset;
+  const previousHeadY = column.headY;
 
-  if (Math.random() < 0.72) {
-    column.glyphs.unshift(randomChar(s.characters));
-    column.glyphs.length = Math.max(7, Math.round(s.trail * layer.speedScale * column.speedOffset));
+  const maxLife = Math.max(5, Math.round(s.trail * layer.speedScale * column.speedOffset));
+  column.residues.unshift({
+    x: column.x,
+    y: previousHeadY,
+    char: randomChar(s.characters),
+    life: maxLife,
+    maxLife,
+  });
+  column.headY += baseStep * column.speedOffset;
+
+  column.residues = column.residues
+    .map((residue) => ({ ...residue, life: residue.life - 1 }))
+    .filter((residue) => residue.life > 0);
+
+  if (Math.random() < 0.05 + s.variance * 0.04 && column.residues.length > 0) {
+    const swapIndex = Math.floor(Math.random() * column.residues.length);
+    column.residues[swapIndex].char = randomChar(s.characters);
   }
 
-  if (Math.random() < 0.05 + s.variance * 0.04) {
-    const swapIndex = Math.floor(Math.random() * column.glyphs.length);
-    column.glyphs[swapIndex] = randomChar(s.characters);
-  }
-
-  if (column.y > height + column.glyphs.length * layer.fontSize) {
+  if (column.headY > height + maxLife * layer.fontSize) {
     layer.columns[index] = makeColumn(index, s, layer, true);
   }
 }
@@ -223,7 +225,6 @@ function randomize() {
   controls.trail.value = String(16 + Math.floor(Math.random() * 18));
   controls.depth.value = String(3 + Math.floor(Math.random() * 3));
   controls.variance.value = String(35 + Math.floor(Math.random() * 55));
-  controls.jitter.value = String(Math.floor(Math.random() * 28));
   controls.glow.value = String(2 + Math.floor(Math.random() * 7));
   resetRain();
 }
