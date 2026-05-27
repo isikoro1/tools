@@ -395,6 +395,12 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
   while (column.timer >= interval && typed < 6) {
     const previousHeadY = column.row * layer.rowStep + layer.rowStep / 2;
     const maxLife = Math.max(0.1, s.trail / 10);
+    const maxResidues = maxResidueCount(column, s, layer);
+
+    if (previousHeadY >= -layer.fontSize && previousHeadY <= height + layer.fontSize && column.residues.length >= maxResidues) {
+      column.timer = interval;
+      return;
+    }
 
     if (previousHeadY >= -layer.fontSize && previousHeadY <= height + layer.fontSize) {
       column.residues.unshift({
@@ -404,10 +410,6 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
         life: maxLife,
         maxLife,
       });
-      const maxResidues = maxResidueCount(column, s, layer);
-      if (column.residues.length > maxResidues) {
-        column.residues.length = maxResidues;
-      }
     }
 
     column.row += 1;
