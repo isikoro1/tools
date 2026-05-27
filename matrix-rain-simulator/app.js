@@ -95,7 +95,7 @@ function makeLayer(layerIndex, s) {
   const speedScale = 0.72 + depthAmount * 0.42;
   const fontSize = Math.max(8, Math.round(s.fontSize * scale));
   const spacing = fontSize * randomBetween(0.95, 1.08);
-  const rowStep = fontSize * (1.55 + s.rowSpacing * 0.62);
+  const rowStep = fontSize * (1.08 + s.rowSpacing * 0.96);
   const count = Math.ceil(width / spacing) + 2;
 
   const layer = {
@@ -124,7 +124,7 @@ function makeColumn(index, s, layer, spreadStart = false) {
     startDelay,
     speedOffset: randomBetween(varianceMin, varianceMax) * layer.speedScale,
     cooldown: 0,
-    skip: Math.random() > s.density * (0.82 + layer.alpha * 0.18),
+    skip: Math.random() > Math.min(1, s.density * (0.94 + layer.alpha * 0.08)),
     residues: [],
   };
 }
@@ -162,17 +162,24 @@ function prepareText(layer) {
 
 function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity) {
   const innerGlow = Math.min(5, glow * 0.42);
-  const outerGlow = Math.min(9, glow * 0.72);
+  const outerGlow = Math.min(13, glow * (0.72 + intensity * 0.62));
+  const haloGlow = Math.min(18, glow * (1.1 + intensity * 0.8));
   const glowAlpha = Math.max(0, intensity);
 
   if (glow > 0 && glowAlpha > 0) {
-    ctx.globalAlpha = alpha * 0.28 * glowAlpha;
-    ctx.shadowBlur = outerGlow;
+    ctx.globalAlpha = alpha * 0.2 * glowAlpha;
+    ctx.shadowBlur = haloGlow;
     ctx.shadowColor = color;
     ctx.fillStyle = color;
     ctx.fillText(char, x, y);
 
     ctx.globalAlpha = alpha * 0.42 * glowAlpha;
+    ctx.shadowBlur = outerGlow;
+    ctx.shadowColor = color;
+    ctx.fillStyle = color;
+    ctx.fillText(char, x, y);
+
+    ctx.globalAlpha = alpha * 0.62 * glowAlpha;
     ctx.shadowBlur = innerGlow;
     ctx.fillText(char, x, y);
   }
@@ -287,14 +294,14 @@ function randomize() {
   controls.fontSize.value = String(12 + Math.floor(Math.random() * 17));
   controls.speedLimit.value = String(16 + Math.floor(Math.random() * 9));
   controls.speed.value = String(12 + Math.floor(Math.random() * Number(controls.speedLimit.value - 11)));
-  controls.density.value = String(58 + Math.floor(Math.random() * 40));
+  controls.density.value = String(70 + Math.floor(Math.random() * 28));
   controls.trail.value = String(26 + Math.floor(Math.random() * 25));
-  controls.rowSpacing.value = String(42 + Math.floor(Math.random() * 38));
+  controls.rowSpacing.value = String(18 + Math.floor(Math.random() * 48));
   controls.depth.value = String(1 + Math.floor(Math.random() * 3));
   controls.depthStrength.value = String(18 + Math.floor(Math.random() * 42));
   controls.variance.value = String(25 + Math.floor(Math.random() * 45));
   controls.glow.value = String(2 + Math.floor(Math.random() * 7));
-  controls.glyphGlow.value = String(35 + Math.floor(Math.random() * 50));
+  controls.glyphGlow.value = String(50 + Math.floor(Math.random() * 50));
   updateSpeedRange();
   resetRain();
 }
