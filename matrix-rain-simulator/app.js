@@ -338,6 +338,13 @@ function drawColumn(column, s, layer) {
   ctx.globalAlpha = 1;
 }
 
+function stepSkippedColumn(column, s, layer, index, elapsedSeconds) {
+  column.startDelay -= elapsedSeconds * column.cps;
+  if (column.startDelay <= 0) {
+    layer.columns[index] = makeColumn(index, s, layer, false);
+  }
+}
+
 function stepColumn(column, s, layer, index, elapsedSeconds) {
   if (column.startDelay > 0) {
     column.startDelay -= elapsedSeconds * column.cps;
@@ -364,6 +371,10 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
         life: maxLife,
         maxLife,
       });
+      const maxResidues = Math.min(96, Math.ceil(maxLife * column.cps) + 2);
+      if (column.residues.length > maxResidues) {
+        column.residues.length = maxResidues;
+      }
     }
 
     column.row += 1;
@@ -384,6 +395,7 @@ function tickRain(elapsedSeconds = 1 / 30) {
   layers.forEach((layer) => {
     layer.columns.forEach((column, index) => {
       if (column.skip) {
+        stepSkippedColumn(column, s, layer, index, elapsedSeconds);
         return;
       }
       drawColumn(column, s, layer);
@@ -423,18 +435,18 @@ function randomize() {
   controls.headColor.value = palette[1];
   controls.backgroundColor.value = palette[2];
   controls.fontSize.value = String(12 + Math.floor(Math.random() * 17));
-  controls.speedMin.value = String(3 + Math.floor(Math.random() * 10));
-  controls.speedMax.value = String(16 + Math.floor(Math.random() * 20));
-  controls.density.value = String(12 + Math.floor(Math.random() * 86));
-  controls.trail.value = String(26 + Math.floor(Math.random() * 25));
-  controls.rowSpacing.value = String(Math.floor(Math.random() * 64));
-  controls.depth.value = String(1 + Math.floor(Math.random() * 8));
-  controls.depthStrength.value = String(18 + Math.floor(Math.random() * 42));
-  controls.variance.value = String(40 + Math.floor(Math.random() * 120));
+  controls.speedMin.value = String(4 + Math.floor(Math.random() * 8));
+  controls.speedMax.value = String(12 + Math.floor(Math.random() * 18));
+  controls.density.value = String(16 + Math.floor(Math.random() * 72));
+  controls.trail.value = String(24 + Math.floor(Math.random() * 19));
+  controls.rowSpacing.value = String(8 + Math.floor(Math.random() * 52));
+  controls.depth.value = String(1 + Math.floor(Math.random() * 5));
+  controls.depthStrength.value = String(12 + Math.floor(Math.random() * 36));
+  controls.variance.value = String(30 + Math.floor(Math.random() * 95));
   controls.varianceMode.value = ["uniform", "center", "extreme", "slow", "fast"][Math.floor(Math.random() * 5)];
-  controls.glow.value = String(4 + Math.floor(Math.random() * 18));
-  controls.glyphGlow.value = String(70 + Math.floor(Math.random() * 180));
-  controls.glyphBlur.value = String(Math.floor(Math.random() * 8));
+  controls.glow.value = String(3 + Math.floor(Math.random() * 14));
+  controls.glyphGlow.value = String(65 + Math.floor(Math.random() * 135));
+  controls.glyphBlur.value = String(Math.floor(Math.random() * 5));
   normalizeSpeedBounds();
   resetRain();
 }
