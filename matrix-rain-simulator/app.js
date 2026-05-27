@@ -226,7 +226,7 @@ function stepColumn(column, s, layer, index) {
     column.residues.unshift({
       x: column.x,
       y: previousHeadY,
-      char: randomChar(s.characters),
+      char: column.headChar,
       life: maxLife,
       maxLife,
     });
@@ -235,11 +235,6 @@ function stepColumn(column, s, layer, index) {
   column.row += 1;
   column.headChar = randomChar(s.characters);
   column.cooldown = Math.max(0, Math.round(1.65 / Math.max(0.4, column.speedOffset)) - 1);
-
-  if (Math.random() < 0.05 + s.variance * 0.04 && column.residues.length > 0) {
-    const swapIndex = Math.floor(Math.random() * column.residues.length);
-    column.residues[swapIndex].char = randomChar(s.characters);
-  }
 
   if (column.row * layer.rowStep > height + maxLife * layer.rowStep) {
     layer.columns[index] = makeColumn(index, s, layer, false);
