@@ -373,9 +373,11 @@ function maxResidueCount(column, s, layer) {
   const minCps = Math.max(0.1, s.speedMin * Math.max(0.02, 1 - s.variance * 0.95) * layer.speedScale);
   const maxCps = Math.max(minCps, s.speedMax * (1 + s.variance * 2.8) * layer.speedScale);
   const speedRatio = Math.min(1, Math.max(0, (column.cps - minCps) / (maxCps - minCps || 1)));
-  const slowPenalty = 0.08 + speedRatio * 0.92;
+  const slowPenalty = 0.38 + speedRatio * 0.62;
   const baseCount = Math.ceil(Math.max(0.1, s.trail / 10) * column.cps);
-  return Math.max(1, Math.min(96, Math.round(baseCount * slowPenalty) + 1));
+  const visibleRows = Math.ceil(height / layer.rowStep);
+  const minimumTail = Math.min(visibleRows + 2, Math.max(4, Math.round(s.trail / 9)));
+  return Math.max(minimumTail, Math.min(96, Math.round(baseCount * slowPenalty) + 1));
 }
 
 function stepColumn(column, s, layer, index, elapsedSeconds) {
