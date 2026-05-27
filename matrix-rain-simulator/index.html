@@ -30,20 +30,20 @@
             <input id="fontSize" type="range" min="10" max="34" value="18" />
           </label>
           <label class="field">
-            <span>&#x843d;&#x4e0b;&#x901f;&#x5ea6;</span>
-            <input id="speed" type="range" min="4" max="24" value="18" />
+            <span>&#x901f;&#x5ea6;&#x4e0b;&#x9650;</span>
+            <input id="speedMin" type="range" min="0.5" max="40" step="0.5" value="7" />
           </label>
           <label class="field">
             <span>&#x901f;&#x5ea6;&#x4e0a;&#x9650;</span>
-            <input id="speedLimit" type="range" min="6" max="28" value="16" />
+            <input id="speedMax" type="range" min="0.5" max="40" step="0.5" value="18" />
           </label>
           <label class="field">
             <span>&#x901f;&#x5ea6;&#x306e;&#x3070;&#x3089;&#x3064;&#x304d;</span>
-            <input id="variance" type="range" min="0" max="100" value="44" />
+            <input id="variance" type="range" min="0" max="200" value="90" />
           </label>
           <label class="field">
             <span>&#x5bc6;&#x5ea6;</span>
-            <input id="density" type="range" min="55" max="100" value="86" />
+            <input id="density" type="range" min="60" max="100" value="88" />
           </label>
           <label class="field">
             <span>&#x6b8b;&#x50cf;</span>
@@ -51,7 +51,11 @@
           </label>
           <label class="field">
             <span>&#x6587;&#x5b57;&#x9593;&#x9694;</span>
-            <input id="rowSpacing" type="range" min="0" max="100" value="42" />
+            <input id="rowSpacing" type="range" min="0" max="100" value="35" />
+          </label>
+          <label class="field">
+            <span>&#x6587;&#x5b57;&#x306e;&#x592a;&#x3055;</span>
+            <input id="fontWeight" type="range" min="100" max="900" step="100" value="500" />
           </label>
           <label class="field">
             <span>&#x5965;&#x884c;&#x304d;&#x306e;&#x6570;</span>
@@ -63,11 +67,11 @@
           </label>
           <label class="field">
             <span>&#x5149;&#x5f69;</span>
-            <input id="glow" type="range" min="0" max="12" value="4" />
+            <input id="glow" type="range" min="0" max="30" value="8" />
           </label>
           <label class="field">
             <span>&#x6587;&#x5b57;&#x767a;&#x5149;</span>
-            <input id="glyphGlow" type="range" min="0" max="100" value="58" />
+            <input id="glyphGlow" type="range" min="0" max="300" value="110" />
           </label>
         </div>
 
@@ -107,10 +111,12 @@
           </label>
           <button id="exportPngBtn" class="action-button" type="button">PNG</button>
           <button id="exportGifBtn" class="action-button" type="button">GIF</button>
+          <button id="saveJsonBtn" class="action-button" type="button">JSON save</button>
+          <button id="loadJsonBtn" class="action-button" type="button">JSON load</button>
+          <input id="loadJsonInput" class="file-input" type="file" accept="application/json,.json" />
         </div>
 
         <div class="toggle-row">
-          <label><input id="katakanaMode" type="checkbox" checked /> &#x30ab;&#x30bf;&#x30ab;&#x30ca;&#x591a;&#x3081;</label>
           <label><input id="paused" type="checkbox" /> &#x4e00;&#x6642;&#x505c;&#x6b62;</label>
         </div>
         <p id="exportStatus" class="status" aria-live="polite"></p>

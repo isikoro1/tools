@@ -4,11 +4,12 @@ const ctx = canvas.getContext("2d");
 const controls = {
   characters: document.querySelector("#characters"),
   fontSize: document.querySelector("#fontSize"),
-  speed: document.querySelector("#speed"),
-  speedLimit: document.querySelector("#speedLimit"),
+  speedMin: document.querySelector("#speedMin"),
+  speedMax: document.querySelector("#speedMax"),
   density: document.querySelector("#density"),
   trail: document.querySelector("#trail"),
   rowSpacing: document.querySelector("#rowSpacing"),
+  fontWeight: document.querySelector("#fontWeight"),
   depth: document.querySelector("#depth"),
   depthStrength: document.querySelector("#depthStrength"),
   variance: document.querySelector("#variance"),
@@ -17,21 +18,42 @@ const controls = {
   textColor: document.querySelector("#textColor"),
   headColor: document.querySelector("#headColor"),
   backgroundColor: document.querySelector("#backgroundColor"),
-  katakanaMode: document.querySelector("#katakanaMode"),
   paused: document.querySelector("#paused"),
   randomizeBtn: document.querySelector("#randomizeBtn"),
   exportPngBtn: document.querySelector("#exportPngBtn"),
   exportGifBtn: document.querySelector("#exportGifBtn"),
   gifFps: document.querySelector("#gifFps"),
   gifSeconds: document.querySelector("#gifSeconds"),
+  saveJsonBtn: document.querySelector("#saveJsonBtn"),
+  loadJsonBtn: document.querySelector("#loadJsonBtn"),
+  loadJsonInput: document.querySelector("#loadJsonInput"),
   exportStatus: document.querySelector("#exportStatus"),
   controlPanel: document.querySelector("#controlPanel"),
 };
 
-const katakana =
-  "\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce\u30cf\u30d2\u30d5\u30d8\u30db\u30de\u30df\u30e0\u30e1\u30e2\u30e4\u30e6\u30e8\u30e9\u30ea\u30eb\u30ec\u30ed\u30ef\u30f2\u30f3";
+const settingKeys = [
+  "characters",
+  "fontSize",
+  "fontWeight",
+  "speedMin",
+  "speedMax",
+  "density",
+  "trail",
+  "rowSpacing",
+  "depth",
+  "depthStrength",
+  "variance",
+  "glow",
+  "glyphGlow",
+  "textColor",
+  "headColor",
+  "backgroundColor",
+  "paused",
+  "gifFps",
+  "gifSeconds",
+];
+
 const latin = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-const symbols = "@#$%&*+-=<>[]{}()/\\|:;?!";
 
 let width = 0;
 let height = 0;
@@ -42,11 +64,13 @@ let accumulator = 0;
 let isExportingGif = false;
 
 function settings() {
-  const speedLimit = Number(controls.speedLimit.value);
+  const speedMin = Number(controls.speedMin.value);
+  const speedMax = Math.max(speedMin, Number(controls.speedMax.value));
   return {
     fontSize: Number(controls.fontSize.value),
-    speed: Math.min(Number(controls.speed.value), speedLimit),
-    speedLimit,
+    fontWeight: Number(controls.fontWeight.value),
+    speedMin,
+    speedMax,
     density: Number(controls.density.value) / 100,
     trail: Number(controls.trail.value),
     rowSpacing: Number(controls.rowSpacing.value) / 100,
@@ -65,8 +89,7 @@ function settings() {
 function buildCharacters() {
   const custom = controls.characters.value.trim();
   const base = custom.length ? custom : latin;
-  const characters = controls.katakanaMode.checked ? `${base}${katakana}${katakana}${symbols}` : base;
-  return Array.from(characters, toFullWidth).join("");
+  return Array.from(base, toFullWidth).join("");
 }
 
 function toFullWidth(char) {
@@ -95,7 +118,7 @@ function makeLayer(layerIndex, s) {
   const speedScale = 0.72 + depthAmount * 0.42;
   const fontSize = Math.max(8, Math.round(s.fontSize * scale));
   const spacing = fontSize * randomBetween(0.95, 1.08);
-  const rowStep = fontSize * (1.08 + s.rowSpacing * 0.96);
+  const rowStep = fontSize * (0.78 + s.rowSpacing * 1.38);
   const count = Math.ceil(width / spacing) + 2;
 
   const layer = {
@@ -112,18 +135,19 @@ function makeLayer(layerIndex, s) {
 }
 
 function makeColumn(index, s, layer, spreadStart = false) {
-  const varianceMin = 1 - s.variance * 0.42;
-  const varianceMax = 1 + s.variance * 0.82;
+  const varianceMin = Math.max(0.08, 1 - s.variance * 0.8);
+  const varianceMax = 1 + s.variance * 1.8;
   const rowCount = Math.ceil(height / layer.rowStep) + 4;
   const startDelay = spreadStart ? Math.floor(randomBetween(0, rowCount * 1.6)) : Math.floor(randomBetween(0, 8));
+  const baseCps = randomBetween(s.speedMin, s.speedMax);
 
   return {
     x: index * layer.spacing + layer.spacing / 2,
     row: -1,
     headChar: randomChar(s.characters),
     startDelay,
-    speedOffset: randomBetween(varianceMin, varianceMax) * layer.speedScale,
-    cooldown: 0,
+    cps: Math.max(0.1, baseCps * randomBetween(varianceMin, varianceMax) * layer.speedScale),
+    timer: 0,
     skip: Math.random() > Math.min(1, s.density * (0.94 + layer.alpha * 0.08)),
     residues: [],
   };
@@ -154,32 +178,32 @@ function paintBackground(s) {
   ctx.fillRect(0, 0, width, height);
 }
 
-function prepareText(layer) {
-  ctx.font = `${layer.fontSize}px "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", monospace`;
+function prepareText(layer, s) {
+  ctx.font = `${s.fontWeight} ${layer.fontSize}px "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", monospace`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 }
 
 function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity) {
-  const innerGlow = Math.min(5, glow * 0.42);
-  const outerGlow = Math.min(13, glow * (0.72 + intensity * 0.62));
-  const haloGlow = Math.min(18, glow * (1.1 + intensity * 0.8));
+  const innerGlow = Math.min(10, glow * (0.36 + intensity * 0.18));
+  const outerGlow = Math.min(24, glow * (0.62 + intensity * 0.95));
+  const haloGlow = Math.min(42, glow * (0.9 + intensity * 1.2));
   const glowAlpha = Math.max(0, intensity);
 
   if (glow > 0 && glowAlpha > 0) {
-    ctx.globalAlpha = alpha * 0.2 * glowAlpha;
+    ctx.globalAlpha = alpha * 0.28 * glowAlpha;
     ctx.shadowBlur = haloGlow;
     ctx.shadowColor = color;
     ctx.fillStyle = color;
     ctx.fillText(char, x, y);
 
-    ctx.globalAlpha = alpha * 0.42 * glowAlpha;
+    ctx.globalAlpha = alpha * 0.62 * glowAlpha;
     ctx.shadowBlur = outerGlow;
     ctx.shadowColor = color;
     ctx.fillStyle = color;
     ctx.fillText(char, x, y);
 
-    ctx.globalAlpha = alpha * 0.62 * glowAlpha;
+    ctx.globalAlpha = alpha * 0.86 * glowAlpha;
     ctx.shadowBlur = innerGlow;
     ctx.fillText(char, x, y);
   }
@@ -205,61 +229,64 @@ function drawHead(column, s, layer) {
 }
 
 function drawColumn(column, s, layer) {
-  prepareText(layer);
+  prepareText(layer, s);
   column.residues.forEach((residue) => drawResidue(residue, s, layer));
   drawHead(column, s, layer);
   ctx.globalAlpha = 1;
 }
 
-function stepColumn(column, s, layer, index) {
+function stepColumn(column, s, layer, index, elapsedSeconds) {
   if (column.startDelay > 0) {
-    column.startDelay -= 1;
+    column.startDelay -= elapsedSeconds * column.cps;
     return;
   }
 
   column.residues = column.residues
-    .map((residue) => ({ ...residue, life: residue.life - 1 }))
+    .map((residue) => ({ ...residue, life: residue.life - elapsedSeconds }))
     .filter((residue) => residue.life > 0);
 
-  if (column.cooldown > 0) {
-    column.cooldown -= 1;
-    return;
-  }
+  column.timer += elapsedSeconds;
+  const interval = 1 / column.cps;
+  let typed = 0;
 
-  const previousHeadY = column.row * layer.rowStep + layer.rowStep / 2;
-  const maxLife = Math.max(8, Math.round(s.trail));
+  while (column.timer >= interval && typed < 6) {
+    const previousHeadY = column.row * layer.rowStep + layer.rowStep / 2;
+    const maxLife = Math.max(0.4, s.trail / 10);
 
-  if (previousHeadY >= -layer.fontSize && previousHeadY <= height + layer.fontSize) {
-    column.residues.unshift({
-      x: column.x,
-      y: previousHeadY,
-      char: column.headChar,
-      life: maxLife,
-      maxLife,
-    });
-  }
+    if (previousHeadY >= -layer.fontSize && previousHeadY <= height + layer.fontSize) {
+      column.residues.unshift({
+        x: column.x,
+        y: previousHeadY,
+        char: column.headChar,
+        life: maxLife,
+        maxLife,
+      });
+    }
 
-  column.row += 1;
-  column.headChar = randomChar(s.characters);
-  column.cooldown = Math.max(0, Math.round(1.65 / Math.max(0.4, column.speedOffset)) - 1);
+    column.row += 1;
+    column.headChar = randomChar(s.characters);
+    column.timer -= interval;
+    typed += 1;
 
-  if (column.row * layer.rowStep > height + maxLife * layer.rowStep) {
-    layer.columns[index] = makeColumn(index, s, layer, false);
+    if (column.row * layer.rowStep > height + maxLife * column.cps * layer.rowStep) {
+      layer.columns[index] = makeColumn(index, s, layer, false);
+      return;
+    }
   }
 }
 
-function tickRain() {
+function tickRain(elapsedSeconds = 1 / 30) {
   const s = settings();
-      paintBackground(s);
-      layers.forEach((layer) => {
-        layer.columns.forEach((column, index) => {
-          if (column.skip) {
-            if (Math.random() < 0.004 + layer.alpha * 0.004) column.skip = false;
-            return;
-          }
-          drawColumn(column, s, layer);
-          stepColumn(column, s, layer, index);
-        });
+  paintBackground(s);
+  layers.forEach((layer) => {
+    layer.columns.forEach((column, index) => {
+      if (column.skip) {
+        if (Math.random() < (0.45 + layer.alpha * 0.35) * elapsedSeconds) column.skip = false;
+        return;
+      }
+      drawColumn(column, s, layer);
+      stepColumn(column, s, layer, index, elapsedSeconds);
+    });
   });
 }
 
@@ -269,10 +296,8 @@ function frame(now) {
 
   if (!controls.paused.checked) {
     accumulator += elapsed;
-    const frameInterval = Math.max(16, 1000 / settings().speed);
-
-    if (accumulator >= frameInterval) {
-      tickRain();
+    if (accumulator >= 16) {
+      tickRain(Math.min(0.08, accumulator / 1000));
       accumulator = 0;
     }
   }
@@ -292,17 +317,17 @@ function randomize() {
   controls.headColor.value = palette[1];
   controls.backgroundColor.value = palette[2];
   controls.fontSize.value = String(12 + Math.floor(Math.random() * 17));
-  controls.speedLimit.value = String(16 + Math.floor(Math.random() * 9));
-  controls.speed.value = String(12 + Math.floor(Math.random() * Number(controls.speedLimit.value - 11)));
-  controls.density.value = String(70 + Math.floor(Math.random() * 28));
+  controls.speedMin.value = String(3 + Math.floor(Math.random() * 10));
+  controls.speedMax.value = String(16 + Math.floor(Math.random() * 20));
+  controls.density.value = String(74 + Math.floor(Math.random() * 24));
   controls.trail.value = String(26 + Math.floor(Math.random() * 25));
-  controls.rowSpacing.value = String(18 + Math.floor(Math.random() * 48));
+  controls.rowSpacing.value = String(Math.floor(Math.random() * 64));
   controls.depth.value = String(1 + Math.floor(Math.random() * 3));
   controls.depthStrength.value = String(18 + Math.floor(Math.random() * 42));
-  controls.variance.value = String(25 + Math.floor(Math.random() * 45));
-  controls.glow.value = String(2 + Math.floor(Math.random() * 7));
-  controls.glyphGlow.value = String(50 + Math.floor(Math.random() * 50));
-  updateSpeedRange();
+  controls.variance.value = String(40 + Math.floor(Math.random() * 120));
+  controls.glow.value = String(4 + Math.floor(Math.random() * 18));
+  controls.glyphGlow.value = String(70 + Math.floor(Math.random() * 180));
+  normalizeSpeedBounds();
   resetRain();
 }
 
@@ -310,10 +335,9 @@ function togglePanel() {
   document.body.classList.toggle("config-hidden");
 }
 
-function updateSpeedRange() {
-  controls.speed.max = controls.speedLimit.value;
-  if (Number(controls.speed.value) > Number(controls.speedLimit.value)) {
-    controls.speed.value = controls.speedLimit.value;
+function normalizeSpeedBounds() {
+  if (Number(controls.speedMin.value) > Number(controls.speedMax.value)) {
+    controls.speedMax.value = controls.speedMin.value;
   }
 }
 
@@ -324,6 +348,44 @@ function downloadBlob(blob, fileName) {
   link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function collectConfig() {
+  return Object.fromEntries(
+    settingKeys.map((key) => [key, controls[key].type === "checkbox" ? controls[key].checked : controls[key].value]),
+  );
+}
+
+function applyConfig(config) {
+  settingKeys.forEach((key) => {
+    if (!(key in config) || !controls[key]) return;
+    if (controls[key].type === "checkbox") {
+      controls[key].checked = Boolean(config[key]);
+    } else {
+      controls[key].value = config[key];
+    }
+  });
+  normalizeSpeedBounds();
+  resetRain();
+}
+
+function saveJson() {
+  const blob = new Blob([JSON.stringify(collectConfig(), null, 2)], { type: "application/json" });
+  downloadBlob(blob, "matrix-rain-settings.json");
+}
+
+function loadJson(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    try {
+      applyConfig(JSON.parse(String(reader.result)));
+      controls.exportStatus.textContent = "JSON loaded";
+    } catch {
+      controls.exportStatus.textContent = "JSON load failed";
+    }
+  });
+  reader.readAsText(file);
 }
 
 function exportPng() {
@@ -351,7 +413,7 @@ async function exportGif() {
   const frames = [];
 
   for (let i = 0; i < frameCount; i += 1) {
-    tickRain();
+    tickRain(1 / fps);
     exportCtx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
     frames.push(exportCtx.getImageData(0, 0, exportCanvas.width, exportCanvas.height));
     controls.exportStatus.textContent = `GIF ${i + 1}/${frameCount}`;
@@ -488,22 +550,35 @@ function writeSubBlocks(bytes, data) {
   controls.density,
   controls.trail,
   controls.rowSpacing,
+  controls.fontWeight,
   controls.depth,
   controls.depthStrength,
   controls.variance,
   controls.characters,
-  controls.katakanaMode,
   controls.backgroundColor,
 ].forEach((control) => control.addEventListener("input", resetRain));
 
-controls.speedLimit.addEventListener("input", updateSpeedRange);
+controls.speedMin.addEventListener("input", () => {
+  normalizeSpeedBounds();
+  resetRain();
+});
+controls.speedMax.addEventListener("input", () => {
+  normalizeSpeedBounds();
+  resetRain();
+});
 controls.randomizeBtn.addEventListener("click", randomize);
 controls.exportPngBtn.addEventListener("click", exportPng);
 controls.exportGifBtn.addEventListener("click", exportGif);
+controls.saveJsonBtn.addEventListener("click", saveJson);
+controls.loadJsonBtn.addEventListener("click", () => controls.loadJsonInput.click());
+controls.loadJsonInput.addEventListener("change", () => {
+  loadJson(controls.loadJsonInput.files[0]);
+  controls.loadJsonInput.value = "";
+});
 controls.controlPanel.addEventListener("click", (event) => event.stopPropagation());
 document.body.addEventListener("click", togglePanel);
 window.addEventListener("resize", resize);
 
-updateSpeedRange();
+normalizeSpeedBounds();
 resize();
 requestAnimationFrame(frame);
