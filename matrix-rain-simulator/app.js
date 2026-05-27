@@ -315,22 +315,18 @@ function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity, blur) {
   }
 
   if (blurAmount > 0) {
-    ctx.globalAlpha = alpha * 0.72;
-    ctx.shadowBlur = blurAmount * 2.6;
+    ctx.globalAlpha = alpha * 0.45;
+    ctx.shadowBlur = blurAmount * 3.2;
     ctx.shadowColor = color;
-    ctx.filter = `blur(${Math.min(5, blurAmount * 0.18)}px)`;
     ctx.fillStyle = color;
     ctx.fillText(char, x, y);
-    ctx.filter = "none";
   }
 
   ctx.globalAlpha = alpha;
-  ctx.shadowBlur = blurAmount * 0.8;
+  ctx.shadowBlur = blurAmount * 1.2;
   ctx.shadowColor = color;
   ctx.fillStyle = color;
-  ctx.filter = blurAmount > 0 ? `blur(${Math.min(2.8, blurAmount * 0.08)}px)` : "none";
   ctx.fillText(char, x, y);
-  ctx.filter = "none";
 }
 
 function drawResidue(residue, s, layer) {
