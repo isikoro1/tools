@@ -8,6 +8,7 @@ const controls = {
   speedLimit: document.querySelector("#speedLimit"),
   density: document.querySelector("#density"),
   trail: document.querySelector("#trail"),
+  rowSpacing: document.querySelector("#rowSpacing"),
   depth: document.querySelector("#depth"),
   depthStrength: document.querySelector("#depthStrength"),
   variance: document.querySelector("#variance"),
@@ -47,6 +48,7 @@ function settings() {
     speedLimit,
     density: Number(controls.density.value) / 100,
     trail: Number(controls.trail.value),
+    rowSpacing: Number(controls.rowSpacing.value) / 100,
     depth: Number(controls.depth.value),
     depthStrength: Number(controls.depthStrength.value) / 100,
     variance: Number(controls.variance.value) / 100,
@@ -91,7 +93,7 @@ function makeLayer(layerIndex, s) {
   const speedScale = 0.72 + depthAmount * 0.42;
   const fontSize = Math.max(8, Math.round(s.fontSize * scale));
   const spacing = fontSize * randomBetween(0.95, 1.08);
-  const rowStep = fontSize * 1.34;
+  const rowStep = fontSize * (1.55 + s.rowSpacing * 0.62);
   const count = Math.ceil(width / spacing) + 2;
 
   const layer = {
@@ -227,7 +229,7 @@ function stepColumn(column, s, layer, index) {
   }
 
   column.row += 1;
-  column.cooldown = Math.max(0, Math.round(2.6 / Math.max(0.35, column.speedOffset)) - 1);
+  column.cooldown = Math.max(0, Math.round(1.65 / Math.max(0.4, column.speedOffset)) - 1);
 
   if (Math.random() < 0.05 + s.variance * 0.04 && column.residues.length > 0) {
     const swapIndex = Math.floor(Math.random() * column.residues.length);
@@ -283,10 +285,11 @@ function randomize() {
   controls.headColor.value = palette[1];
   controls.backgroundColor.value = palette[2];
   controls.fontSize.value = String(12 + Math.floor(Math.random() * 17));
-  controls.speedLimit.value = String(12 + Math.floor(Math.random() * 11));
-  controls.speed.value = String(7 + Math.floor(Math.random() * Number(controls.speedLimit.value - 6)));
+  controls.speedLimit.value = String(16 + Math.floor(Math.random() * 9));
+  controls.speed.value = String(12 + Math.floor(Math.random() * Number(controls.speedLimit.value - 11)));
   controls.density.value = String(58 + Math.floor(Math.random() * 40));
   controls.trail.value = String(26 + Math.floor(Math.random() * 25));
+  controls.rowSpacing.value = String(42 + Math.floor(Math.random() * 38));
   controls.depth.value = String(1 + Math.floor(Math.random() * 3));
   controls.depthStrength.value = String(18 + Math.floor(Math.random() * 42));
   controls.variance.value = String(25 + Math.floor(Math.random() * 45));
@@ -435,19 +438,10 @@ function indexPixels(data, palette) {
 function lzwEncode(indices, minCodeSize) {
   const clearCode = 1 << minCodeSize;
   const endCode = clearCode + 1;
-  let codeSize = minCodeSize + 1;
-  let nextCode = endCode + 1;
-  let dict = new Map();
   const output = [];
   let bitBuffer = 0;
   let bitCount = 0;
-
-  function resetDict() {
-    dict = new Map();
-    for (let i = 0; i < clearCode; i += 1) dict.set(String(i), i);
-    codeSize = minCodeSize + 1;
-    nextCode = endCode + 1;
-  }
+  const codeSize = minCodeSize + 1;
 
   function emit(code) {
     bitBuffer |= code << bitCount;
@@ -459,30 +453,15 @@ function lzwEncode(indices, minCodeSize) {
     }
   }
 
-  resetDict();
   emit(clearCode);
-  let phrase = String(indices[0]);
 
-  for (let i = 1; i < indices.length; i += 1) {
-    const current = String(indices[i]);
-    const combo = `${phrase},${current}`;
-    if (dict.has(combo)) {
-      phrase = combo;
-    } else {
-      emit(dict.get(phrase));
-      if (nextCode < 4096) {
-        dict.set(combo, nextCode);
-        nextCode += 1;
-        if (nextCode === 1 << codeSize && codeSize < 12) codeSize += 1;
-      } else {
-        emit(clearCode);
-        resetDict();
-      }
-      phrase = current;
+  indices.forEach((index, position) => {
+    if (position > 0 && position % 8 === 0) {
+      emit(clearCode);
     }
-  }
+    emit(index);
+  });
 
-  emit(dict.get(phrase));
   emit(endCode);
   if (bitCount > 0) output.push(bitBuffer & 255);
   return output;
@@ -500,6 +479,7 @@ function writeSubBlocks(bytes, data) {
   controls.fontSize,
   controls.density,
   controls.trail,
+  controls.rowSpacing,
   controls.depth,
   controls.depthStrength,
   controls.variance,
