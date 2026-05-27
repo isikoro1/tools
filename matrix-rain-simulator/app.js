@@ -13,6 +13,7 @@ const controls = {
   depthStrength: document.querySelector("#depthStrength"),
   variance: document.querySelector("#variance"),
   glow: document.querySelector("#glow"),
+  glyphGlow: document.querySelector("#glyphGlow"),
   textColor: document.querySelector("#textColor"),
   headColor: document.querySelector("#headColor"),
   backgroundColor: document.querySelector("#backgroundColor"),
@@ -53,6 +54,7 @@ function settings() {
     depthStrength: Number(controls.depthStrength.value) / 100,
     variance: Number(controls.variance.value) / 100,
     glow: Number(controls.glow.value),
+    glyphGlow: Number(controls.glyphGlow.value) / 100,
     textColor: controls.textColor.value,
     headColor: controls.headColor.value,
     backgroundColor: controls.backgroundColor.value,
@@ -158,18 +160,19 @@ function prepareText(layer) {
   ctx.textBaseline = "middle";
 }
 
-function drawGlowingGlyph(char, x, y, color, alpha, glow) {
+function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity) {
   const innerGlow = Math.min(5, glow * 0.42);
   const outerGlow = Math.min(9, glow * 0.72);
+  const glowAlpha = Math.max(0, intensity);
 
-  if (glow > 0) {
-    ctx.globalAlpha = alpha * 0.28;
+  if (glow > 0 && glowAlpha > 0) {
+    ctx.globalAlpha = alpha * 0.28 * glowAlpha;
     ctx.shadowBlur = outerGlow;
     ctx.shadowColor = color;
     ctx.fillStyle = color;
     ctx.fillText(char, x, y);
 
-    ctx.globalAlpha = alpha * 0.42;
+    ctx.globalAlpha = alpha * 0.42 * glowAlpha;
     ctx.shadowBlur = innerGlow;
     ctx.fillText(char, x, y);
   }
@@ -183,7 +186,7 @@ function drawGlowingGlyph(char, x, y, color, alpha, glow) {
 function drawResidue(residue, s, layer) {
   const age = Math.max(0, residue.life / residue.maxLife);
   const alpha = Math.max(0.04, age ** 1.45) * layer.alpha;
-  drawGlowingGlyph(residue.char, residue.x, residue.y, s.textColor, alpha, s.glow * 0.55);
+  drawGlowingGlyph(residue.char, residue.x, residue.y, s.textColor, alpha, s.glow * 0.55, s.glyphGlow);
 }
 
 function drawHead(column, s, layer) {
@@ -191,7 +194,7 @@ function drawHead(column, s, layer) {
   const headY = column.row * layer.rowStep + layer.rowStep / 2;
   if (headY < -layer.rowStep || headY > height + layer.rowStep) return;
 
-  drawGlowingGlyph(column.headChar, column.x, headY, s.headColor, layer.alpha, s.glow * 1.25);
+  drawGlowingGlyph(column.headChar, column.x, headY, s.headColor, layer.alpha, s.glow * 1.25, s.glyphGlow);
 }
 
 function drawColumn(column, s, layer) {
@@ -296,6 +299,7 @@ function randomize() {
   controls.depthStrength.value = String(18 + Math.floor(Math.random() * 42));
   controls.variance.value = String(25 + Math.floor(Math.random() * 45));
   controls.glow.value = String(2 + Math.floor(Math.random() * 7));
+  controls.glyphGlow.value = String(35 + Math.floor(Math.random() * 50));
   updateSpeedRange();
   resetRain();
 }
