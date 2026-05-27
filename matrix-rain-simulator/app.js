@@ -54,6 +54,18 @@ function randomChar(chars) {
   return chars[Math.floor(Math.random() * chars.length)] || "0";
 }
 
+function makeColumn(index, s, startAbove = true) {
+  const streamLength = Math.max(8, Math.round(s.trail * (0.85 + Math.random() * 0.8)));
+  return {
+    x: index * s.fontSize,
+    y: startAbove ? -Math.random() * height : Math.random() * height,
+    speedOffset: 0.7 + Math.random() * 0.85,
+    skip: Math.random() > s.density,
+    glyphs: Array.from({ length: streamLength }, () => randomChar(s.characters)),
+    drift: (Math.random() - 0.5) * s.jitter,
+  };
+}
+
 function resize() {
   dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
   width = window.innerWidth;
@@ -69,45 +81,63 @@ function resize() {
 function resetColumns() {
   const s = settings();
   const count = Math.ceil(width / s.fontSize);
-  columns = Array.from({ length: count }, (_, index) => ({
-    x: index * s.fontSize,
-    y: Math.random() * -height,
-    speedOffset: 0.65 + Math.random() * 0.85,
-    skip: Math.random() > s.density,
-  }));
+  columns = Array.from({ length: count }, (_, index) => makeColumn(index, s, false));
+  paintBackground(s);
+}
+
+function paintBackground(s) {
+  ctx.shadowBlur = 0;
   ctx.fillStyle = s.backgroundColor;
   ctx.fillRect(0, 0, width, height);
 }
 
 function drawColumn(column, s) {
   if (column.skip) {
-    if (Math.random() < 0.003) column.skip = false;
+    if (Math.random() < 0.006) column.skip = false;
     return;
   }
 
-  const rows = Math.ceil(s.trail);
-  const xJitter = (Math.random() - 0.5) * s.fontSize * s.jitter;
+  const charWidth = s.fontSize * 0.72;
+  const xJitter = column.drift * charWidth;
 
   ctx.font = `${s.fontSize}px "SFMono-Regular", Consolas, monospace`;
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  ctx.shadowColor = s.textColor;
-  ctx.shadowBlur = s.glow;
 
-  for (let i = rows; i >= 0; i -= 1) {
+  for (let i = column.glyphs.length - 1; i >= 0; i -= 1) {
     const y = column.y - i * s.fontSize;
     if (y < -s.fontSize || y > height + s.fontSize) continue;
 
-    const opacity = i === 0 ? 1 : Math.max(0.08, 1 - i / rows);
-    ctx.fillStyle = i === 0 ? s.headColor : hexToRgba(s.textColor, opacity);
-    ctx.fillText(randomChar(s.characters), column.x + xJitter, y);
+    const depth = i / Math.max(1, column.glyphs.length - 1);
+    const opacity = i === 0 ? 1 : Math.max(0.18, (1 - depth) ** 1.55);
+    const isHead = i === 0;
+    const x = column.x + xJitter;
+
+    ctx.shadowBlur = isHead ? s.glow : Math.min(2, s.glow * 0.18);
+    ctx.shadowColor = isHead ? s.headColor : s.textColor;
+    ctx.fillStyle = isHead ? s.headColor : hexToRgba(s.textColor, opacity);
+    ctx.fillText(column.glyphs[i], x, y);
+
+    if (isHead && s.glow > 0) {
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = hexToRgba(s.textColor, 0.84);
+      ctx.fillText(column.glyphs[i], x, y);
+    }
+  }
+}
+
+function stepColumn(column, s, index) {
+  column.y += s.fontSize * column.speedOffset;
+  column.glyphs.unshift(randomChar(s.characters));
+  column.glyphs.length = Math.max(8, Math.round(s.trail * column.speedOffset));
+
+  if (Math.random() < 0.04) {
+    const swapIndex = Math.floor(Math.random() * column.glyphs.length);
+    column.glyphs[swapIndex] = randomChar(s.characters);
   }
 
-  column.y += s.fontSize * column.speedOffset;
-  if (column.y > height + rows * s.fontSize) {
-    column.y = Math.random() * -height * 0.45;
-    column.speedOffset = 0.65 + Math.random() * 0.85;
-    column.skip = Math.random() > s.density;
+  if (column.y > height + column.glyphs.length * s.fontSize) {
+    columns[index] = makeColumn(index, s, true);
   }
 }
 
@@ -130,9 +160,11 @@ function frame(now) {
     const frameInterval = Math.max(16, 1000 / s.speed);
 
     if (accumulator >= frameInterval) {
-      ctx.fillStyle = hexToRgba(s.backgroundColor, 1 / s.trail);
-      ctx.fillRect(0, 0, width, height);
-      columns.forEach((column) => drawColumn(column, s));
+      paintBackground(s);
+      columns.forEach((column, index) => {
+        drawColumn(column, s);
+        stepColumn(column, s, index);
+      });
       accumulator = 0;
     }
   }
@@ -142,27 +174,28 @@ function frame(now) {
 
 function randomize() {
   const palettes = [
-    ["#00ff66", "#ddffdd", "#020403"],
-    ["#38ffbd", "#ffffff", "#010607"],
-    ["#b7ff3c", "#f4ffd7", "#030500"],
-    ["#45d6ff", "#effcff", "#010409"],
+    ["#00ff66", "#ddffdd", "#000000"],
+    ["#2cff8e", "#effff3", "#010201"],
+    ["#b7ff3c", "#f4ffd7", "#000200"],
+    ["#38ffbd", "#ffffff", "#000304"],
   ];
   const palette = palettes[Math.floor(Math.random() * palettes.length)];
   controls.textColor.value = palette[0];
   controls.headColor.value = palette[1];
   controls.backgroundColor.value = palette[2];
   controls.fontSize.value = String(12 + Math.floor(Math.random() * 18));
-  controls.speed.value = String(6 + Math.floor(Math.random() * 18));
-  controls.density.value = String(45 + Math.floor(Math.random() * 55));
-  controls.trail.value = String(8 + Math.floor(Math.random() * 14));
-  controls.jitter.value = String(Math.floor(Math.random() * 46));
-  controls.glow.value = String(4 + Math.floor(Math.random() * 18));
+  controls.speed.value = String(7 + Math.floor(Math.random() * 16));
+  controls.density.value = String(55 + Math.floor(Math.random() * 45));
+  controls.trail.value = String(14 + Math.floor(Math.random() * 16));
+  controls.jitter.value = String(Math.floor(Math.random() * 32));
+  controls.glow.value = String(2 + Math.floor(Math.random() * 7));
   resetColumns();
 }
 
 [
   controls.fontSize,
   controls.density,
+  controls.trail,
   controls.characters,
   controls.katakanaMode,
   controls.backgroundColor,
