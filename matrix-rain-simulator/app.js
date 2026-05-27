@@ -7,6 +7,8 @@ const controls = {
   speed: document.querySelector("#speed"),
   density: document.querySelector("#density"),
   trail: document.querySelector("#trail"),
+  depth: document.querySelector("#depth"),
+  variance: document.querySelector("#variance"),
   jitter: document.querySelector("#jitter"),
   glow: document.querySelector("#glow"),
   textColor: document.querySelector("#textColor"),
@@ -15,17 +17,18 @@ const controls = {
   katakanaMode: document.querySelector("#katakanaMode"),
   paused: document.querySelector("#paused"),
   randomizeBtn: document.querySelector("#randomizeBtn"),
+  togglePanelBtn: document.querySelector("#togglePanelBtn"),
 };
 
 const katakana =
-  "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン";
+  "\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce\u30cf\u30d2\u30d5\u30d8\u30db\u30de\u30df\u30e0\u30e1\u30e2\u30e4\u30e6\u30e8\u30e9\u30ea\u30eb\u30ec\u30ed\u30ef\u30f2\u30f3";
 const latin = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const symbols = "@#$%&*+-=<>[]{}()/\\|:;?!";
 
 let width = 0;
 let height = 0;
 let dpr = 1;
-let columns = [];
+let layers = [];
 let lastFrame = performance.now();
 let accumulator = 0;
 
@@ -35,6 +38,8 @@ function settings() {
     speed: Number(controls.speed.value),
     density: Number(controls.density.value) / 100,
     trail: Number(controls.trail.value),
+    depth: Number(controls.depth.value),
+    variance: Number(controls.variance.value) / 100,
     jitter: Number(controls.jitter.value) / 100,
     glow: Number(controls.glow.value),
     textColor: controls.textColor.value,
@@ -54,15 +59,46 @@ function randomChar(chars) {
   return chars[Math.floor(Math.random() * chars.length)] || "0";
 }
 
-function makeColumn(index, s, startAbove = true) {
-  const streamLength = Math.max(8, Math.round(s.trail * (0.85 + Math.random() * 0.8)));
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function makeLayer(layerIndex, s) {
+  const denominator = Math.max(1, s.depth - 1);
+  const depthRatio = denominator === 0 ? 1 : layerIndex / denominator;
+  const scale = 0.62 + depthRatio * 0.62;
+  const alpha = 0.2 + depthRatio * 0.82;
+  const speedScale = 0.45 + depthRatio * 0.92;
+  const fontSize = Math.max(8, Math.round(s.fontSize * scale));
+  const spacing = fontSize * randomBetween(0.86, 1.08);
+  const count = Math.ceil(width / spacing) + 2;
+
   return {
-    x: index * s.fontSize,
-    y: startAbove ? -Math.random() * height : Math.random() * height,
-    speedOffset: 0.7 + Math.random() * 0.85,
-    skip: Math.random() > s.density,
+    alpha,
+    fontSize,
+    spacing,
+    speedScale,
+    columns: Array.from({ length: count }, (_, index) =>
+      makeColumn(index, s, { alpha, fontSize, speedScale, spacing }, false),
+    ),
+  };
+}
+
+function makeColumn(index, s, layer, startAbove = true) {
+  const varianceMin = 1 - s.variance * 0.55;
+  const varianceMax = 1 + s.variance * 1.2;
+  const streamLength = Math.max(
+    7,
+    Math.round(s.trail * layer.speedScale * randomBetween(0.78, 1.42)),
+  );
+
+  return {
+    x: index * layer.spacing + randomBetween(-layer.fontSize * 0.22, layer.fontSize * 0.22),
+    y: startAbove ? -randomBetween(0, height * 0.72) : randomBetween(-height * 0.08, height),
+    speedOffset: randomBetween(varianceMin, varianceMax) * layer.speedScale,
+    skip: Math.random() > s.density * (0.74 + layer.alpha * 0.32),
     glyphs: Array.from({ length: streamLength }, () => randomChar(s.characters)),
-    drift: (Math.random() - 0.5) * s.jitter,
+    drift: randomBetween(-s.jitter, s.jitter) * layer.fontSize,
   };
 }
 
@@ -75,79 +111,75 @@ function resize() {
   canvas.style.width = `${width}px`;
   canvas.style.height = `${height}px`;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  resetColumns();
+  resetRain();
 }
 
-function resetColumns() {
+function resetRain() {
   const s = settings();
-  const count = Math.ceil(width / s.fontSize);
-  columns = Array.from({ length: count }, (_, index) => makeColumn(index, s, false));
+  layers = Array.from({ length: s.depth }, (_, index) => makeLayer(index, s));
   paintBackground(s);
 }
 
 function paintBackground(s) {
   ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
   ctx.fillStyle = s.backgroundColor;
   ctx.fillRect(0, 0, width, height);
 }
 
-function drawColumn(column, s) {
+function drawColumn(column, s, layer) {
   if (column.skip) {
-    if (Math.random() < 0.006) column.skip = false;
+    if (Math.random() < 0.004 + layer.alpha * 0.004) column.skip = false;
     return;
   }
 
-  const charWidth = s.fontSize * 0.72;
-  const xJitter = column.drift * charWidth;
-
-  ctx.font = `${s.fontSize}px "SFMono-Regular", Consolas, monospace`;
+  ctx.font = `${layer.fontSize}px "SFMono-Regular", Consolas, monospace`;
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
 
   for (let i = column.glyphs.length - 1; i >= 0; i -= 1) {
-    const y = column.y - i * s.fontSize;
-    if (y < -s.fontSize || y > height + s.fontSize) continue;
+    const y = column.y - i * layer.fontSize;
+    if (y < -layer.fontSize || y > height + layer.fontSize) continue;
 
     const depth = i / Math.max(1, column.glyphs.length - 1);
-    const opacity = i === 0 ? 1 : Math.max(0.18, (1 - depth) ** 1.55);
+    const tailAlpha = Math.max(0.12, (1 - depth) ** 1.45) * layer.alpha;
     const isHead = i === 0;
-    const x = column.x + xJitter;
+    const x = column.x + column.drift;
 
-    ctx.shadowBlur = isHead ? s.glow : Math.min(2, s.glow * 0.18);
+    ctx.globalAlpha = isHead ? layer.alpha : tailAlpha;
+    ctx.shadowBlur = isHead ? s.glow * layer.alpha : Math.min(1.5, s.glow * 0.12);
     ctx.shadowColor = isHead ? s.headColor : s.textColor;
-    ctx.fillStyle = isHead ? s.headColor : hexToRgba(s.textColor, opacity);
+    ctx.fillStyle = isHead ? s.headColor : s.textColor;
     ctx.fillText(column.glyphs[i], x, y);
 
-    if (isHead && s.glow > 0) {
+    if (isHead && layer.alpha > 0.7) {
+      ctx.globalAlpha = 0.72;
       ctx.shadowBlur = 0;
-      ctx.fillStyle = hexToRgba(s.textColor, 0.84);
+      ctx.fillStyle = s.textColor;
       ctx.fillText(column.glyphs[i], x, y);
     }
   }
+
+  ctx.globalAlpha = 1;
 }
 
-function stepColumn(column, s, index) {
-  column.y += s.fontSize * column.speedOffset;
-  column.glyphs.unshift(randomChar(s.characters));
-  column.glyphs.length = Math.max(8, Math.round(s.trail * column.speedOffset));
+function stepColumn(column, s, layer, index) {
+  const baseStep = Math.max(1, layer.fontSize * 0.62);
+  column.y += baseStep * column.speedOffset;
 
-  if (Math.random() < 0.04) {
+  if (Math.random() < 0.72) {
+    column.glyphs.unshift(randomChar(s.characters));
+    column.glyphs.length = Math.max(7, Math.round(s.trail * layer.speedScale * column.speedOffset));
+  }
+
+  if (Math.random() < 0.05 + s.variance * 0.04) {
     const swapIndex = Math.floor(Math.random() * column.glyphs.length);
     column.glyphs[swapIndex] = randomChar(s.characters);
   }
 
-  if (column.y > height + column.glyphs.length * s.fontSize) {
-    columns[index] = makeColumn(index, s, true);
+  if (column.y > height + column.glyphs.length * layer.fontSize) {
+    layer.columns[index] = makeColumn(index, s, layer, true);
   }
-}
-
-function hexToRgba(hex, alpha) {
-  const value = hex.replace("#", "");
-  const bigint = Number.parseInt(value, 16);
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function frame(now) {
@@ -161,9 +193,11 @@ function frame(now) {
 
     if (accumulator >= frameInterval) {
       paintBackground(s);
-      columns.forEach((column, index) => {
-        drawColumn(column, s);
-        stepColumn(column, s, index);
+      layers.forEach((layer) => {
+        layer.columns.forEach((column, index) => {
+          drawColumn(column, s, layer);
+          stepColumn(column, s, layer, index);
+        });
       });
       accumulator = 0;
     }
@@ -183,25 +217,36 @@ function randomize() {
   controls.textColor.value = palette[0];
   controls.headColor.value = palette[1];
   controls.backgroundColor.value = palette[2];
-  controls.fontSize.value = String(12 + Math.floor(Math.random() * 18));
+  controls.fontSize.value = String(12 + Math.floor(Math.random() * 17));
   controls.speed.value = String(7 + Math.floor(Math.random() * 16));
-  controls.density.value = String(55 + Math.floor(Math.random() * 45));
-  controls.trail.value = String(14 + Math.floor(Math.random() * 16));
-  controls.jitter.value = String(Math.floor(Math.random() * 32));
+  controls.density.value = String(58 + Math.floor(Math.random() * 40));
+  controls.trail.value = String(16 + Math.floor(Math.random() * 18));
+  controls.depth.value = String(3 + Math.floor(Math.random() * 3));
+  controls.variance.value = String(35 + Math.floor(Math.random() * 55));
+  controls.jitter.value = String(Math.floor(Math.random() * 28));
   controls.glow.value = String(2 + Math.floor(Math.random() * 7));
-  resetColumns();
+  resetRain();
+}
+
+function togglePanel() {
+  const hidden = document.body.classList.toggle("config-hidden");
+  controls.togglePanelBtn.setAttribute("aria-expanded", String(!hidden));
+  controls.togglePanelBtn.textContent = hidden ? "\u8a2d\u5b9a\u3092\u8868\u793a" : "\u8a2d\u5b9a\u3092\u96a0\u3059";
 }
 
 [
   controls.fontSize,
   controls.density,
   controls.trail,
+  controls.depth,
+  controls.variance,
   controls.characters,
   controls.katakanaMode,
   controls.backgroundColor,
-].forEach((control) => control.addEventListener("input", resetColumns));
+].forEach((control) => control.addEventListener("input", resetRain));
 
 controls.randomizeBtn.addEventListener("click", randomize);
+controls.togglePanelBtn.addEventListener("click", togglePanel);
 window.addEventListener("resize", resize);
 
 resize();

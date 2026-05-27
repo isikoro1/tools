@@ -15,7 +15,7 @@ body {
   min-height: 100vh;
   margin: 0;
   overflow: hidden;
-  background: #020403;
+  background: #000;
 }
 
 .app-shell {
@@ -44,6 +44,31 @@ body {
   background: rgba(2, 9, 6, 0.78);
   box-shadow: 0 18px 70px rgba(0, 0, 0, 0.44);
   backdrop-filter: blur(16px);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+}
+
+.config-toggle {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 2;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(129, 249, 170, 0.36);
+  border-radius: 8px;
+  background: rgba(2, 9, 6, 0.72);
+  color: #eaffef;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+}
+
+.config-hidden .control-panel {
+  visibility: hidden;
+  opacity: 0;
+  transform: translateX(18px);
+  pointer-events: none;
 }
 
 .panel-header {

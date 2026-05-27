@@ -10,7 +10,11 @@
     <main class="app-shell">
       <canvas id="rainCanvas" aria-label="Matrix style falling text animation"></canvas>
 
-      <section class="control-panel" aria-label="Matrix rain settings">
+      <button id="togglePanelBtn" class="config-toggle" type="button" aria-expanded="true" aria-controls="controlPanel">
+        設定を隠す
+      </button>
+
+      <section id="controlPanel" class="control-panel" aria-label="Matrix rain settings">
         <div class="panel-header">
           <div>
             <p class="kicker">Matrix Rain</p>
@@ -31,19 +35,27 @@
           </label>
           <label class="field">
             <span>落下速度</span>
-            <input id="speed" type="range" min="2" max="28" value="11" />
+            <input id="speed" type="range" min="2" max="28" value="12" />
           </label>
           <label class="field">
             <span>密度</span>
-            <input id="density" type="range" min="25" max="100" value="78" />
+            <input id="density" type="range" min="25" max="100" value="82" />
           </label>
           <label class="field">
             <span>残像</span>
-            <input id="trail" type="range" min="6" max="34" value="20" />
+            <input id="trail" type="range" min="6" max="38" value="22" />
+          </label>
+          <label class="field">
+            <span>奥行き</span>
+            <input id="depth" type="range" min="1" max="5" value="4" />
+          </label>
+          <label class="field">
+            <span>速度のばらつき</span>
+            <input id="variance" type="range" min="0" max="100" value="58" />
           </label>
           <label class="field">
             <span>揺らぎ</span>
-            <input id="jitter" type="range" min="0" max="100" value="18" />
+            <input id="jitter" type="range" min="0" max="100" value="16" />
           </label>
           <label class="field">
             <span>光彩</span>
