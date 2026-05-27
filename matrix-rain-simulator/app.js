@@ -359,10 +359,22 @@ function drawColumn(column, s, layer) {
   ctx.globalAlpha = 1;
 }
 
+function fadeResidues(column, elapsedSeconds) {
+  column.residues = column.residues
+    .map((residue) => ({ ...residue, life: residue.life - elapsedSeconds }))
+    .filter((residue) => residue.life > 0);
+}
+
+function replaceColumn(index, s, layer, residues = []) {
+  const nextColumn = makeColumn(index, s, layer, false);
+  nextColumn.residues = residues;
+  layer.columns[index] = nextColumn;
+}
+
 function stepSkippedColumn(column, s, layer, index, elapsedSeconds) {
   column.startDelay -= elapsedSeconds * column.cps;
   if (column.startDelay <= 0) {
-    layer.columns[index] = makeColumn(index, s, layer, false);
+    replaceColumn(index, s, layer, column.residues);
   }
 }
 
@@ -381,9 +393,7 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
     return;
   }
 
-  column.residues = column.residues
-    .map((residue) => ({ ...residue, life: residue.life - elapsedSeconds }))
-    .filter((residue) => residue.life > 0);
+  fadeResidues(column, elapsedSeconds);
 
   column.timer += elapsedSeconds;
   const interval = 1 / column.cps;
@@ -414,7 +424,7 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
     typed += 1;
 
     if (column.typedRows >= column.maxTypedRows || column.row * layer.rowStep > height + maxLife * column.cps * layer.rowStep) {
-      layer.columns[index] = makeColumn(index, s, layer, false);
+      replaceColumn(index, s, layer, column.residues);
       return;
     }
   }
@@ -426,6 +436,10 @@ function tickRain(elapsedSeconds = 1 / 30) {
   layers.forEach((layer) => {
     layer.columns.forEach((column, index) => {
       if (column.skip) {
+        fadeResidues(column, elapsedSeconds);
+        if (column.residues.length > 0) {
+          drawColumn(column, s, layer);
+        }
         stepSkippedColumn(column, s, layer, index, elapsedSeconds);
         return;
       }
