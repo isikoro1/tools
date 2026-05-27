@@ -91,28 +91,34 @@ function makeLayer(layerIndex, s) {
   const speedScale = 0.72 + depthAmount * 0.42;
   const fontSize = Math.max(8, Math.round(s.fontSize * scale));
   const spacing = fontSize * randomBetween(0.95, 1.08);
+  const rowStep = fontSize * 1.34;
   const count = Math.ceil(width / spacing) + 2;
 
   const layer = {
     alpha,
     fontSize,
     spacing,
+    rowStep,
     speedScale,
     columns: [],
   };
 
-  layer.columns = Array.from({ length: count }, (_, index) => makeColumn(index, s, layer));
+  layer.columns = Array.from({ length: count }, (_, index) => makeColumn(index, s, layer, true));
   return layer;
 }
 
-function makeColumn(index, s, layer) {
+function makeColumn(index, s, layer, spreadStart = false) {
   const varianceMin = 1 - s.variance * 0.42;
   const varianceMax = 1 + s.variance * 0.82;
+  const rowCount = Math.ceil(height / layer.rowStep) + 4;
+  const startDelay = spreadStart ? Math.floor(randomBetween(0, rowCount * 1.6)) : Math.floor(randomBetween(0, 8));
 
   return {
     x: index * layer.spacing + layer.spacing / 2,
-    headY: -layer.fontSize - randomBetween(0, layer.fontSize * 8),
+    row: -1,
+    startDelay,
     speedOffset: randomBetween(varianceMin, varianceMax) * layer.speedScale,
+    cooldown: 0,
     skip: Math.random() > s.density * (0.82 + layer.alpha * 0.18),
     residues: [],
   };
@@ -178,9 +184,11 @@ function drawResidue(residue, s, layer) {
 }
 
 function drawHead(column, s, layer) {
-  if (column.headY < -layer.fontSize || column.headY > height + layer.fontSize) return;
+  if (column.startDelay > 0) return;
+  const headY = column.row * layer.rowStep + layer.rowStep / 2;
+  if (headY < -layer.rowStep || headY > height + layer.rowStep) return;
 
-  drawGlowingGlyph(randomChar(s.characters), column.x, column.headY, s.headColor, layer.alpha, s.glow * 1.25);
+  drawGlowingGlyph(randomChar(s.characters), column.x, headY, s.headColor, layer.alpha, s.glow * 1.25);
 }
 
 function drawColumn(column, s, layer) {
@@ -191,9 +199,22 @@ function drawColumn(column, s, layer) {
 }
 
 function stepColumn(column, s, layer, index) {
-  const baseStep = Math.max(1, layer.fontSize * 0.54);
-  const previousHeadY = column.headY;
-  const maxLife = Math.max(5, Math.round(s.trail * layer.speedScale * column.speedOffset));
+  if (column.startDelay > 0) {
+    column.startDelay -= 1;
+    return;
+  }
+
+  column.residues = column.residues
+    .map((residue) => ({ ...residue, life: residue.life - 1 }))
+    .filter((residue) => residue.life > 0);
+
+  if (column.cooldown > 0) {
+    column.cooldown -= 1;
+    return;
+  }
+
+  const previousHeadY = column.row * layer.rowStep + layer.rowStep / 2;
+  const maxLife = Math.max(8, Math.round(s.trail));
 
   if (previousHeadY >= -layer.fontSize && previousHeadY <= height + layer.fontSize) {
     column.residues.unshift({
@@ -205,18 +226,16 @@ function stepColumn(column, s, layer, index) {
     });
   }
 
-  column.headY += baseStep * column.speedOffset;
-  column.residues = column.residues
-    .map((residue) => ({ ...residue, life: residue.life - 1 }))
-    .filter((residue) => residue.life > 0);
+  column.row += 1;
+  column.cooldown = Math.max(0, Math.round(2.6 / Math.max(0.35, column.speedOffset)) - 1);
 
   if (Math.random() < 0.05 + s.variance * 0.04 && column.residues.length > 0) {
     const swapIndex = Math.floor(Math.random() * column.residues.length);
     column.residues[swapIndex].char = randomChar(s.characters);
   }
 
-  if (column.headY > height + maxLife * layer.fontSize) {
-    layer.columns[index] = makeColumn(index, s, layer);
+  if (column.row * layer.rowStep > height + maxLife * layer.rowStep) {
+    layer.columns[index] = makeColumn(index, s, layer, false);
   }
 }
 
@@ -267,7 +286,7 @@ function randomize() {
   controls.speedLimit.value = String(12 + Math.floor(Math.random() * 11));
   controls.speed.value = String(7 + Math.floor(Math.random() * Number(controls.speedLimit.value - 6)));
   controls.density.value = String(58 + Math.floor(Math.random() * 40));
-  controls.trail.value = String(16 + Math.floor(Math.random() * 18));
+  controls.trail.value = String(26 + Math.floor(Math.random() * 25));
   controls.depth.value = String(1 + Math.floor(Math.random() * 3));
   controls.depthStrength.value = String(18 + Math.floor(Math.random() * 42));
   controls.variance.value = String(25 + Math.floor(Math.random() * 45));
