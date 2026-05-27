@@ -26,6 +26,7 @@ const controls = {
   headColor: document.querySelector("#headColor"),
   backgroundColor: document.querySelector("#backgroundColor"),
   paused: document.querySelector("#paused"),
+  defaultBtn: document.querySelector("#defaultBtn"),
   randomizeBtn: document.querySelector("#randomizeBtn"),
   exportPngBtn: document.querySelector("#exportPngBtn"),
   exportGifBtn: document.querySelector("#exportGifBtn"),
@@ -64,6 +65,30 @@ const settingKeys = [
 ];
 
 const latin = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+const defaultConfig = {
+  characters: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
+  characterPreset: "default",
+  fontSize: "18",
+  fontWeight: "500",
+  speedMin: "7",
+  speedMax: "18",
+  density: "88",
+  trail: "34",
+  rowSpacing: "35",
+  depth: "2",
+  depthStrength: "36",
+  variance: "90",
+  varianceMode: "uniform",
+  glow: "8",
+  glyphGlow: "110",
+  glyphBlur: "0",
+  textColor: "#00ff66",
+  headColor: "#ddffdd",
+  backgroundColor: "#000000",
+  paused: false,
+  gifFps: "12",
+  gifSeconds: "2",
+};
 const builtInPresets = {
   default: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
   matrix: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*+-=<>[]{}?/\\|:;!\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
@@ -453,6 +478,11 @@ function applyConfig(config) {
   resetRain();
 }
 
+function resetDefaults() {
+  applyConfig(defaultConfig);
+  controls.exportStatus.textContent = "Defaults loaded";
+}
+
 function saveJson() {
   const blob = new Blob([JSON.stringify(collectConfig(), null, 2)], { type: "application/json" });
   downloadBlob(blob, "matrix-rain-settings.json");
@@ -706,6 +736,7 @@ controls.speedMax.addEventListener("input", () => {
   normalizeSpeedBounds();
   resetRain();
 });
+controls.defaultBtn.addEventListener("click", resetDefaults);
 controls.randomizeBtn.addEventListener("click", randomize);
 controls.exportPngBtn.addEventListener("click", exportPng);
 controls.exportGifBtn.addEventListener("click", exportGif);

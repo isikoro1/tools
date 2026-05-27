@@ -61,6 +61,11 @@ body {
   margin-bottom: 16px;
 }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .kicker {
   margin: 0 0 4px;
   color: #81f9aa;
