@@ -149,24 +149,38 @@ function prepareText(layer) {
   ctx.textBaseline = "middle";
 }
 
+function drawGlowingGlyph(char, x, y, color, alpha, glow) {
+  const innerGlow = Math.min(5, glow * 0.42);
+  const outerGlow = Math.min(9, glow * 0.72);
+
+  if (glow > 0) {
+    ctx.globalAlpha = alpha * 0.28;
+    ctx.shadowBlur = outerGlow;
+    ctx.shadowColor = color;
+    ctx.fillStyle = color;
+    ctx.fillText(char, x, y);
+
+    ctx.globalAlpha = alpha * 0.42;
+    ctx.shadowBlur = innerGlow;
+    ctx.fillText(char, x, y);
+  }
+
+  ctx.globalAlpha = alpha;
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = color;
+  ctx.fillText(char, x, y);
+}
+
 function drawResidue(residue, s, layer) {
   const age = Math.max(0, residue.life / residue.maxLife);
   const alpha = Math.max(0.04, age ** 1.45) * layer.alpha;
-  ctx.globalAlpha = alpha;
-  ctx.shadowBlur = Math.min(1.4, s.glow * 0.08);
-  ctx.shadowColor = s.textColor;
-  ctx.fillStyle = s.textColor;
-  ctx.fillText(residue.char, residue.x, residue.y);
+  drawGlowingGlyph(residue.char, residue.x, residue.y, s.textColor, alpha, s.glow * 0.55);
 }
 
 function drawHead(column, s, layer) {
   if (column.headY < -layer.fontSize || column.headY > height + layer.fontSize) return;
 
-  ctx.globalAlpha = layer.alpha;
-  ctx.shadowBlur = s.glow * layer.alpha;
-  ctx.shadowColor = s.headColor;
-  ctx.fillStyle = s.headColor;
-  ctx.fillText(randomChar(s.characters), column.x, column.headY);
+  drawGlowingGlyph(randomChar(s.characters), column.x, column.headY, s.headColor, layer.alpha, s.glow * 1.25);
 }
 
 function drawColumn(column, s, layer) {
