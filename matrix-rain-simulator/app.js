@@ -3,6 +3,7 @@ const ctx = canvas.getContext("2d");
 
 const controls = {
   characters: document.querySelector("#characters"),
+  characterPreset: document.querySelector("#characterPreset"),
   fontSize: document.querySelector("#fontSize"),
   speedMin: document.querySelector("#speedMin"),
   speedMax: document.querySelector("#speedMax"),
@@ -13,8 +14,10 @@ const controls = {
   depth: document.querySelector("#depth"),
   depthStrength: document.querySelector("#depthStrength"),
   variance: document.querySelector("#variance"),
+  varianceMode: document.querySelector("#varianceMode"),
   glow: document.querySelector("#glow"),
   glyphGlow: document.querySelector("#glyphGlow"),
+  glyphBlur: document.querySelector("#glyphBlur"),
   textColor: document.querySelector("#textColor"),
   headColor: document.querySelector("#headColor"),
   backgroundColor: document.querySelector("#backgroundColor"),
@@ -33,6 +36,7 @@ const controls = {
 
 const settingKeys = [
   "characters",
+  "characterPreset",
   "fontSize",
   "fontWeight",
   "speedMin",
@@ -43,8 +47,10 @@ const settingKeys = [
   "depth",
   "depthStrength",
   "variance",
+  "varianceMode",
   "glow",
   "glyphGlow",
+  "glyphBlur",
   "textColor",
   "headColor",
   "backgroundColor",
@@ -54,6 +60,18 @@ const settingKeys = [
 ];
 
 const latin = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+const characterPresets = {
+  matrix: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*+-=<>[]{}?/\\|:;!アイウエオカキクケコサシスセソタチツテトナニヌネノ",
+  katakana: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン",
+  symbols: "@#$%&*+-=<>[]{}()/\\|:;?!^~_",
+  alphabet: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+  kanji: "日月火水木金土天地人上下左右東西南北零一二三四五六七八九",
+  greek: "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩαβγδεζηθικλμνξοπρστυφχψω",
+  emoji: "◆◇●○◉◎◌◍◈□■△▲▽▼★☆✦✧✺✹",
+  binary: "01",
+  korean: "가나다라마바사아자차카타파하거너더러머버서어저처커터퍼허",
+  cat: "ﾆｬﾝﾐｬｳﾈｺﾏｵﾆｬｰｺﾞｺﾞﾛｽﾘﾓﾌ",
+};
 
 let width = 0;
 let height = 0;
@@ -77,8 +95,10 @@ function settings() {
     depth: Number(controls.depth.value),
     depthStrength: Number(controls.depthStrength.value) / 100,
     variance: Number(controls.variance.value) / 100,
+    varianceMode: controls.varianceMode.value,
     glow: Number(controls.glow.value),
     glyphGlow: Number(controls.glyphGlow.value) / 100,
+    glyphBlur: Number(controls.glyphBlur.value),
     textColor: controls.textColor.value,
     headColor: controls.headColor.value,
     backgroundColor: controls.backgroundColor.value,
@@ -109,6 +129,16 @@ function randomBetween(min, max) {
   return min + Math.random() * (max - min);
 }
 
+function distributionSample(mode) {
+  const a = Math.random();
+  const b = Math.random();
+  if (mode === "center") return (a + b + Math.random()) / 3;
+  if (mode === "extreme") return a < 0.5 ? Math.pow(b, 2) * 0.5 : 1 - Math.pow(b, 2) * 0.5;
+  if (mode === "slow") return Math.pow(a, 2);
+  if (mode === "fast") return 1 - Math.pow(1 - a, 2);
+  return a;
+}
+
 function makeLayer(layerIndex, s) {
   const denominator = Math.max(1, s.depth - 1);
   const depthRatio = s.depth === 1 ? 1 : layerIndex / denominator;
@@ -135,18 +165,19 @@ function makeLayer(layerIndex, s) {
 }
 
 function makeColumn(index, s, layer, spreadStart = false) {
-  const varianceMin = Math.max(0.08, 1 - s.variance * 0.8);
-  const varianceMax = 1 + s.variance * 1.8;
+  const varianceMin = Math.max(0.02, 1 - s.variance * 0.95);
+  const varianceMax = 1 + s.variance * 2.8;
   const rowCount = Math.ceil(height / layer.rowStep) + 4;
   const startDelay = spreadStart ? Math.floor(randomBetween(0, rowCount * 1.6)) : Math.floor(randomBetween(0, 8));
   const baseCps = randomBetween(s.speedMin, s.speedMax);
+  const varianceFactor = varianceMin + (varianceMax - varianceMin) * distributionSample(s.varianceMode);
 
   return {
     x: index * layer.spacing + layer.spacing / 2,
     row: -1,
     headChar: randomChar(s.characters),
     startDelay,
-    cps: Math.max(0.1, baseCps * randomBetween(varianceMin, varianceMax) * layer.speedScale),
+    cps: Math.max(0.1, baseCps * varianceFactor * layer.speedScale),
     timer: 0,
     skip: Math.random() > Math.min(1, s.density * (0.94 + layer.alpha * 0.08)),
     residues: [],
@@ -184,7 +215,7 @@ function prepareText(layer, s) {
   ctx.textBaseline = "middle";
 }
 
-function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity) {
+function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity, blur) {
   const innerGlow = Math.min(10, glow * (0.36 + intensity * 0.18));
   const outerGlow = Math.min(24, glow * (0.62 + intensity * 0.95));
   const haloGlow = Math.min(42, glow * (0.9 + intensity * 1.2));
@@ -209,7 +240,8 @@ function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity) {
   }
 
   ctx.globalAlpha = alpha;
-  ctx.shadowBlur = 0;
+  ctx.shadowBlur = blur;
+  ctx.shadowColor = color;
   ctx.fillStyle = color;
   ctx.fillText(char, x, y);
 }
@@ -217,7 +249,7 @@ function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity) {
 function drawResidue(residue, s, layer) {
   const age = Math.max(0, residue.life / residue.maxLife);
   const alpha = Math.max(0.04, age ** 1.45) * layer.alpha;
-  drawGlowingGlyph(residue.char, residue.x, residue.y, s.textColor, alpha, s.glow * 0.55, s.glyphGlow);
+  drawGlowingGlyph(residue.char, residue.x, residue.y, s.textColor, alpha, s.glow * 0.55, s.glyphGlow, s.glyphBlur);
 }
 
 function drawHead(column, s, layer) {
@@ -225,7 +257,7 @@ function drawHead(column, s, layer) {
   const headY = column.row * layer.rowStep + layer.rowStep / 2;
   if (headY < -layer.rowStep || headY > height + layer.rowStep) return;
 
-  drawGlowingGlyph(column.headChar, column.x, headY, s.headColor, layer.alpha, s.glow * 1.25, s.glyphGlow);
+  drawGlowingGlyph(column.headChar, column.x, headY, s.headColor, layer.alpha, s.glow * 1.25, s.glyphGlow, s.glyphBlur);
 }
 
 function drawColumn(column, s, layer) {
@@ -281,7 +313,6 @@ function tickRain(elapsedSeconds = 1 / 30) {
   layers.forEach((layer) => {
     layer.columns.forEach((column, index) => {
       if (column.skip) {
-        if (Math.random() < (0.45 + layer.alpha * 0.35) * elapsedSeconds) column.skip = false;
         return;
       }
       drawColumn(column, s, layer);
@@ -319,14 +350,16 @@ function randomize() {
   controls.fontSize.value = String(12 + Math.floor(Math.random() * 17));
   controls.speedMin.value = String(3 + Math.floor(Math.random() * 10));
   controls.speedMax.value = String(16 + Math.floor(Math.random() * 20));
-  controls.density.value = String(74 + Math.floor(Math.random() * 24));
+  controls.density.value = String(12 + Math.floor(Math.random() * 86));
   controls.trail.value = String(26 + Math.floor(Math.random() * 25));
   controls.rowSpacing.value = String(Math.floor(Math.random() * 64));
-  controls.depth.value = String(1 + Math.floor(Math.random() * 3));
+  controls.depth.value = String(1 + Math.floor(Math.random() * 8));
   controls.depthStrength.value = String(18 + Math.floor(Math.random() * 42));
   controls.variance.value = String(40 + Math.floor(Math.random() * 120));
+  controls.varianceMode.value = ["uniform", "center", "extreme", "slow", "fast"][Math.floor(Math.random() * 5)];
   controls.glow.value = String(4 + Math.floor(Math.random() * 18));
   controls.glyphGlow.value = String(70 + Math.floor(Math.random() * 180));
+  controls.glyphBlur.value = String(Math.floor(Math.random() * 8));
   normalizeSpeedBounds();
   resetRain();
 }
@@ -386,6 +419,13 @@ function loadJson(file) {
     }
   });
   reader.readAsText(file);
+}
+
+function applyCharacterPreset() {
+  const preset = characterPresets[controls.characterPreset.value];
+  if (!preset) return;
+  controls.characters.value = preset;
+  resetRain();
 }
 
 function exportPng() {
@@ -554,9 +594,11 @@ function writeSubBlocks(bytes, data) {
   controls.depth,
   controls.depthStrength,
   controls.variance,
+  controls.varianceMode,
   controls.characters,
   controls.backgroundColor,
 ].forEach((control) => control.addEventListener("input", resetRain));
+controls.characterPreset.addEventListener("change", applyCharacterPreset);
 
 controls.speedMin.addEventListener("input", () => {
   normalizeSpeedBounds();
