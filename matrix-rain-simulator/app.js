@@ -118,6 +118,7 @@ function makeColumn(index, s, layer, spreadStart = false) {
   return {
     x: index * layer.spacing + layer.spacing / 2,
     row: -1,
+    headChar: randomChar(s.characters),
     startDelay,
     speedOffset: randomBetween(varianceMin, varianceMax) * layer.speedScale,
     cooldown: 0,
@@ -190,7 +191,7 @@ function drawHead(column, s, layer) {
   const headY = column.row * layer.rowStep + layer.rowStep / 2;
   if (headY < -layer.rowStep || headY > height + layer.rowStep) return;
 
-  drawGlowingGlyph(randomChar(s.characters), column.x, headY, s.headColor, layer.alpha, s.glow * 1.25);
+  drawGlowingGlyph(column.headChar, column.x, headY, s.headColor, layer.alpha, s.glow * 1.25);
 }
 
 function drawColumn(column, s, layer) {
@@ -229,6 +230,7 @@ function stepColumn(column, s, layer, index) {
   }
 
   column.row += 1;
+  column.headChar = randomChar(s.characters);
   column.cooldown = Math.max(0, Math.round(1.65 / Math.max(0.4, column.speedOffset)) - 1);
 
   if (Math.random() < 0.05 + s.variance * 0.04 && column.residues.length > 0) {
