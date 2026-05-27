@@ -243,13 +243,20 @@ function makeColumn(index, s, layer, spreadStart = false) {
   const startDelay = spreadStart ? Math.floor(randomBetween(0, rowCount * 1.6)) : Math.floor(randomBetween(0, 8));
   const baseCps = randomBetween(s.speedMin, s.speedMax);
   const varianceFactor = varianceMin + (varianceMax - varianceMin) * distributionSample(s.varianceMode);
+  const cps = Math.max(0.1, baseCps * varianceFactor * layer.speedScale);
+  const minCps = Math.max(0.1, s.speedMin * varianceMin * layer.speedScale);
+  const maxCps = Math.max(minCps, s.speedMax * varianceMax * layer.speedScale);
+  const speedRatio = Math.min(1, Math.max(0, (cps - minCps) / (maxCps - minCps || 1)));
+  const slowLifetimeRows = Math.ceil(rowCount * (0.42 + speedRatio * 0.78));
 
   return {
     x: index * layer.spacing + layer.spacing / 2,
     row: -1,
     headChar: randomChar(s.characters),
     startDelay,
-    cps: Math.max(0.1, baseCps * varianceFactor * layer.speedScale),
+    cps,
+    typedRows: 0,
+    maxTypedRows: Math.max(3, slowLifetimeRows),
     timer: 0,
     skip: Math.random() > Math.min(1, s.density * (0.94 + layer.alpha * 0.08)),
     residues: [],
@@ -360,10 +367,10 @@ function stepSkippedColumn(column, s, layer, index, elapsedSeconds) {
 }
 
 function maxResidueCount(column, s, layer) {
-  const minCps = Math.max(0.1, s.speedMin * layer.speedScale);
+  const minCps = Math.max(0.1, s.speedMin * Math.max(0.02, 1 - s.variance * 0.95) * layer.speedScale);
   const maxCps = Math.max(minCps, s.speedMax * (1 + s.variance * 2.8) * layer.speedScale);
   const speedRatio = Math.min(1, Math.max(0, (column.cps - minCps) / (maxCps - minCps || 1)));
-  const slowPenalty = 0.18 + speedRatio * 0.82;
+  const slowPenalty = 0.08 + speedRatio * 0.92;
   const baseCount = Math.ceil(Math.max(0.1, s.trail / 10) * column.cps);
   return Math.max(1, Math.min(96, Math.round(baseCount * slowPenalty) + 1));
 }
@@ -401,11 +408,12 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
     }
 
     column.row += 1;
+    column.typedRows += 1;
     column.headChar = randomChar(s.characters);
     column.timer -= interval;
     typed += 1;
 
-    if (column.row * layer.rowStep > height + maxLife * column.cps * layer.rowStep) {
+    if (column.typedRows >= column.maxTypedRows || column.row * layer.rowStep > height + maxLife * column.cps * layer.rowStep) {
       layer.columns[index] = makeColumn(index, s, layer, false);
       return;
     }
