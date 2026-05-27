@@ -291,6 +291,7 @@ function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity, blur) {
   const outerGlow = Math.min(24, glow * (0.62 + intensity * 0.95));
   const haloGlow = Math.min(42, glow * (0.9 + intensity * 1.2));
   const glowAlpha = Math.max(0, intensity);
+  const blurAmount = Math.max(0, blur);
 
   if (glow > 0 && glowAlpha > 0) {
     ctx.globalAlpha = alpha * 0.28 * glowAlpha;
@@ -310,11 +311,23 @@ function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity, blur) {
     ctx.fillText(char, x, y);
   }
 
+  if (blurAmount > 0) {
+    ctx.globalAlpha = alpha * 0.72;
+    ctx.shadowBlur = blurAmount * 2.6;
+    ctx.shadowColor = color;
+    ctx.filter = `blur(${Math.min(5, blurAmount * 0.18)}px)`;
+    ctx.fillStyle = color;
+    ctx.fillText(char, x, y);
+    ctx.filter = "none";
+  }
+
   ctx.globalAlpha = alpha;
-  ctx.shadowBlur = blur;
+  ctx.shadowBlur = blurAmount * 0.8;
   ctx.shadowColor = color;
   ctx.fillStyle = color;
+  ctx.filter = blurAmount > 0 ? `blur(${Math.min(2.8, blurAmount * 0.08)}px)` : "none";
   ctx.fillText(char, x, y);
+  ctx.filter = "none";
 }
 
 function drawResidue(residue, s, layer) {
@@ -361,7 +374,7 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
 
   while (column.timer >= interval && typed < 6) {
     const previousHeadY = column.row * layer.rowStep + layer.rowStep / 2;
-    const maxLife = Math.max(0.4, s.trail / 10);
+    const maxLife = Math.max(0.1, s.trail / 10);
 
     if (previousHeadY >= -layer.fontSize && previousHeadY <= height + layer.fontSize) {
       column.residues.unshift({
