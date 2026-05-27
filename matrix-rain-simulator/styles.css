@@ -98,7 +98,8 @@ h1 {
 }
 
 textarea,
-input[type="range"] {
+input[type="range"],
+input[type="text"] {
   width: 100%;
 }
 
@@ -111,6 +112,16 @@ textarea {
   background: rgba(0, 0, 0, 0.42);
   color: #eaffef;
   font: 14px/1.45 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+input[type="text"] {
+  min-height: 38px;
+  border: 1px solid rgba(129, 249, 170, 0.22);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: rgba(0, 0, 0, 0.42);
+  color: #eaffef;
+  font: inherit;
 }
 
 input[type="range"] {
@@ -162,6 +173,10 @@ select {
 
 .small-field {
   flex: 0 1 92px;
+}
+
+.preset-name-field {
+  flex-basis: 132px;
 }
 
 .action-button {

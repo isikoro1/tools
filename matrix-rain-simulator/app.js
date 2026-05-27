@@ -4,6 +4,10 @@ const ctx = canvas.getContext("2d");
 const controls = {
   characters: document.querySelector("#characters"),
   characterPreset: document.querySelector("#characterPreset"),
+  customPresetName: document.querySelector("#customPresetName"),
+  addPresetBtn: document.querySelector("#addPresetBtn"),
+  updatePresetBtn: document.querySelector("#updatePresetBtn"),
+  deletePresetBtn: document.querySelector("#deletePresetBtn"),
   fontSize: document.querySelector("#fontSize"),
   speedMin: document.querySelector("#speedMin"),
   speedMax: document.querySelector("#speedMax"),
@@ -60,18 +64,20 @@ const settingKeys = [
 ];
 
 const latin = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-const characterPresets = {
-  matrix: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*+-=<>[]{}?/\\|:;!アイウエオカキクケコサシスセソタチツテトナニヌネノ",
-  katakana: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン",
+const builtInPresets = {
+  default: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
+  matrix: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*+-=<>[]{}?/\\|:;!\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
+  katakana: "\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce\u30cf\u30d2\u30d5\u30d8\u30db\u30de\u30df\u30e0\u30e1\u30e2\u30e4\u30e6\u30e8\u30e9\u30ea\u30eb\u30ec\u30ed\u30ef\u30f2\u30f3",
   symbols: "@#$%&*+-=<>[]{}()/\\|:;?!^~_",
   alphabet: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-  kanji: "日月火水木金土天地人上下左右東西南北零一二三四五六七八九",
-  greek: "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩαβγδεζηθικλμνξοπρστυφχψω",
-  emoji: "◆◇●○◉◎◌◍◈□■△▲▽▼★☆✦✧✺✹",
+  kanji: "\u65e5\u6708\u706b\u6c34\u6728\u91d1\u571f\u5929\u5730\u4eba\u4e0a\u4e0b\u5de6\u53f3\u6771\u897f\u5357\u5317\u96f6\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d",
+  greek: "\u0391\u0392\u0393\u0394\u0395\u0396\u0397\u0398\u0399\u039a\u039b\u039c\u039d\u039e\u039f\u03a0\u03a1\u03a3\u03a4\u03a5\u03a6\u03a7\u03a8\u03a9\u03b1\u03b2\u03b3\u03b4\u03b5\u03b6\u03b7\u03b8\u03b9\u03ba\u03bb\u03bc\u03bd\u03be\u03bf\u03c0\u03c1\u03c3\u03c4\u03c5\u03c6\u03c7\u03c8\u03c9",
+  emoji: "\u25c6\u25c7\u25cf\u25cb\u25c9\u25ce\u25cc\u25cd\u25c8\u25a1\u25a0\u25b3\u25b2\u25bd\u25bc\u2605\u2606\u2726\u2727\u273a\u2739",
   binary: "01",
-  korean: "가나다라마바사아자차카타파하거너더러머버서어저처커터퍼허",
-  cat: "ﾆｬﾝﾐｬｳﾈｺﾏｵﾆｬｰｺﾞｺﾞﾛｽﾘﾓﾌ",
+  korean: "\uac00\ub098\ub2e4\ub77c\ub9c8\ubc14\uc0ac\uc544\uc790\ucc28\uce74\ud0c0\ud30c\ud558\uac70\ub108\ub354\ub7ec\uba38\ubc84\uc11c\uc5b4\uc800\ucc98\ucee4\ud130\ud37c\ud5c8",
+  cat: "\uff86\uff6c\uff9d\uff90\uff6c\uff73\uff88\uff7a\uff8f\uff75\uff86\uff6c\uff70\uff7a\uff9e\uff7a\uff9e\uff9b\uff7d\uff98\uff93\uff8c",
 };
+let customPresets = loadCustomPresets();
 
 let width = 0;
 let height = 0;
@@ -110,6 +116,46 @@ function buildCharacters() {
   const custom = controls.characters.value.trim();
   const base = custom.length ? custom : latin;
   return Array.from(base, toFullWidth).join("");
+}
+
+function allPresets() {
+  return { ...builtInPresets, ...customPresets };
+}
+
+function loadCustomPresets() {
+  try {
+    return JSON.parse(localStorage.getItem("matrixRainCustomPresets") || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveCustomPresets() {
+  localStorage.setItem("matrixRainCustomPresets", JSON.stringify(customPresets));
+}
+
+function renderPresetOptions(selected = controls.characterPreset.value) {
+  const labels = {
+    default: "\u30c7\u30d5\u30a9\u30eb\u30c8",
+    matrix: "Matrix mix",
+    katakana: "\u30ab\u30bf\u30ab\u30ca",
+    symbols: "\u8a18\u53f7",
+    alphabet: "\u30a2\u30eb\u30d5\u30a1\u30d9\u30c3\u30c8",
+    kanji: "\u6f22\u5b57",
+    greek: "\u30ae\u30ea\u30b7\u30e3\u6587\u5b57",
+    emoji: "\u7d75\u6587\u5b57",
+    binary: "\u30d0\u30a4\u30ca\u30ea",
+    korean: "\u97d3\u56fd\u8a9e",
+    cat: "\u732b\u8a9e",
+  };
+  controls.characterPreset.innerHTML = '<option value="">Custom</option>';
+  Object.keys(builtInPresets).forEach((key) => {
+    controls.characterPreset.add(new Option(labels[key] || key, key));
+  });
+  Object.keys(customPresets).sort().forEach((key) => {
+    controls.characterPreset.add(new Option(`Custom: ${key.replace(/^custom:/, "")}`, key));
+  });
+  controls.characterPreset.value = selected in allPresets() ? selected : "";
 }
 
 function toFullWidth(char) {
@@ -344,6 +390,10 @@ function randomize() {
     ["#38ffbd", "#ffffff", "#000304"],
   ];
   const palette = palettes[Math.floor(Math.random() * palettes.length)];
+  const presetKeys = Object.keys(allPresets());
+  const presetKey = presetKeys[Math.floor(Math.random() * presetKeys.length)];
+  controls.characterPreset.value = presetKey;
+  controls.characters.value = allPresets()[presetKey];
   controls.textColor.value = palette[0];
   controls.headColor.value = palette[1];
   controls.backgroundColor.value = palette[2];
@@ -399,6 +449,7 @@ function applyConfig(config) {
     }
   });
   normalizeSpeedBounds();
+  renderPresetOptions(config.characterPreset || "");
   resetRain();
 }
 
@@ -422,10 +473,54 @@ function loadJson(file) {
 }
 
 function applyCharacterPreset() {
-  const preset = characterPresets[controls.characterPreset.value];
+  const preset = allPresets()[controls.characterPreset.value];
   if (!preset) return;
   controls.characters.value = preset;
   resetRain();
+}
+
+function customPresetKey() {
+  const name = controls.customPresetName.value.trim();
+  if (!name) return "";
+  return `custom:${name}`;
+}
+
+function addCustomPreset() {
+  const key = customPresetKey();
+  if (!key) {
+    controls.exportStatus.textContent = "Preset name required";
+    return;
+  }
+  customPresets[key] = controls.characters.value;
+  saveCustomPresets();
+  renderPresetOptions(key);
+  controls.characterPreset.value = key;
+  controls.exportStatus.textContent = "Preset added";
+}
+
+function updateCustomPreset() {
+  const key = controls.characterPreset.value.startsWith("custom:") ? controls.characterPreset.value : customPresetKey();
+  if (!key || !customPresets[key]) {
+    controls.exportStatus.textContent = "Select custom preset";
+    return;
+  }
+  customPresets[key] = controls.characters.value;
+  saveCustomPresets();
+  renderPresetOptions(key);
+  controls.exportStatus.textContent = "Preset updated";
+}
+
+function deleteCustomPreset() {
+  const key = controls.characterPreset.value;
+  if (!key.startsWith("custom:") || !customPresets[key]) {
+    controls.exportStatus.textContent = "Select custom preset";
+    return;
+  }
+  delete customPresets[key];
+  saveCustomPresets();
+  renderPresetOptions("");
+  controls.characterPreset.value = "";
+  controls.exportStatus.textContent = "Preset deleted";
 }
 
 function exportPng() {
@@ -599,6 +694,9 @@ function writeSubBlocks(bytes, data) {
   controls.backgroundColor,
 ].forEach((control) => control.addEventListener("input", resetRain));
 controls.characterPreset.addEventListener("change", applyCharacterPreset);
+controls.addPresetBtn.addEventListener("click", addCustomPreset);
+controls.updatePresetBtn.addEventListener("click", updateCustomPreset);
+controls.deletePresetBtn.addEventListener("click", deleteCustomPreset);
 
 controls.speedMin.addEventListener("input", () => {
   normalizeSpeedBounds();
@@ -621,6 +719,8 @@ controls.controlPanel.addEventListener("click", (event) => event.stopPropagation
 document.body.addEventListener("click", togglePanel);
 window.addEventListener("resize", resize);
 
+renderPresetOptions("matrix");
+controls.characterPreset.value = "matrix";
 normalizeSpeedBounds();
 resize();
 requestAnimationFrame(frame);

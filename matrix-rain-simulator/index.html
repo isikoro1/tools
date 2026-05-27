@@ -27,6 +27,7 @@
           <span>&#x6587;&#x5b57;&#x30d7;&#x30ea;&#x30bb;&#x30c3;&#x30c8;</span>
           <select id="characterPreset">
             <option value="">Custom</option>
+            <option value="default">&#x30c7;&#x30d5;&#x30a9;&#x30eb;&#x30c8;</option>
             <option value="matrix" selected>Matrix mix</option>
             <option value="katakana">&#x30ab;&#x30bf;&#x30ab;&#x30ca;</option>
             <option value="symbols">&#x8a18;&#x53f7;</option>
@@ -39,6 +40,15 @@
             <option value="cat">&#x732b;&#x8a9e;</option>
           </select>
         </label>
+        <div class="export-row">
+          <label class="field small-field preset-name-field">
+            <span>&#x30ab;&#x30b9;&#x30bf;&#x30e0;&#x540d;</span>
+            <input id="customPresetName" type="text" placeholder="preset name" />
+          </label>
+          <button id="addPresetBtn" class="action-button" type="button">Preset add</button>
+          <button id="updatePresetBtn" class="action-button" type="button">Preset update</button>
+          <button id="deletePresetBtn" class="action-button" type="button">Preset delete</button>
+        </div>
 
         <div class="control-grid">
           <label class="field">
