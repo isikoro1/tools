@@ -94,7 +94,7 @@ const defaultConfig = {
   varianceMode: "uniform",
   glow: "8",
   glyphGlow: "110",
-  glyphBlur: "0",
+  glyphBlur: "4",
   textColor: "#00ff66",
   headColor: "#ddffdd",
   backgroundColor: "#000000",
@@ -114,6 +114,8 @@ const builtInPresets = {
   binary: "01",
   korean: "\uac00\ub098\ub2e4\ub77c\ub9c8\ubc14\uc0ac\uc544\uc790\ucc28\uce74\ud0c0\ud30c\ud558\uac70\ub108\ub354\ub7ec\uba38\ubc84\uc11c\uc5b4\uc800\ucc98\ucee4\ud130\ud37c\ud5c8",
   cat: "\uff86\uff6c\uff9d\uff90\uff6c\uff73\uff88\uff7a\uff8f\uff75\uff86\uff6c\uff70\uff7a\uff9e\uff7a\uff9e\uff9b\uff7d\uff98\uff93\uff8c",
+  siddham: "\u{11580}\u{11581}\u{11582}\u{11583}\u{11584}\u{11585}\u{11586}\u{11587}\u{11588}\u{1158a}\u{1158e}\u{1158f}\u{11590}\u{11591}\u{11592}\u{11593}\u{11594}\u{11595}\u{11598}\u{11599}\u{1159a}\u{1159b}\u{1159c}\u{1159d}\u{1159e}\u{1159f}\u{115a0}\u{115a1}\u{115a2}\u{115a3}\u{115a4}\u{115a5}\u{115a6}\u{115a7}\u{115a8}\u{115aa}",
+  hindi: "\u0905\u0906\u0907\u0908\u0909\u090a\u090f\u0910\u0913\u0914\u0915\u0916\u0917\u0918\u091a\u091b\u091c\u091d\u091f\u0920\u0921\u0922\u0924\u0925\u0926\u0927\u0928\u092a\u092b\u092c\u092d\u092e\u092f\u0930\u0932\u0935\u0936\u0937\u0938\u0939\u0966\u0967\u0968\u0969\u096a\u096b\u096c\u096d\u096e\u096f",
   jiro: "\u30e4\u30b5\u30a4\u30cb\u30f3\u30cb\u30af\u30a2\u30d6\u30e9\u30de\u30b7\u30de\u30b7",
   gal: "\u3061\u3087w\n\u30a6\u30b1\u308b\n\u30de\u30b8\u534d\n\u30de\u30b8\u30d1\u306a\u3044\n\u30d1\u30e9\u30d1\u30e9",
 };
@@ -199,6 +201,8 @@ function renderPresetOptions(selected = controls.characterPreset.value) {
     binary: "\u30d0\u30a4\u30ca\u30ea",
     korean: "\u97d3\u56fd\u8a9e",
     cat: "\u732b\u8a9e",
+    siddham: "\u68b5\u5b57",
+    hindi: "\u30d2\u30f3\u30c9\u30a5\u30fc\u8a9e",
     jiro: "JIRO",
     gal: "GAL",
   };
@@ -282,7 +286,7 @@ function makeLayer(layerIndex, s) {
   const frontRatio = s.depth === 1 ? 1 : 1 - depthRatio;
   const depthAmount = s.depthStrength * frontRatio;
   const scale = 1 - s.depthStrength * 0.22 + depthAmount * 0.32;
-  const alpha = 0.16 + depthAmount * 0.84;
+  const alpha = 0.28 + depthAmount * 0.72;
   const speedScale = 0.72 + depthAmount * 0.42;
   const fontSize = Math.max(8, Math.round(s.fontSize * scale));
   const spacing = fontSize * randomBetween(0.95, 1.08);
@@ -443,7 +447,7 @@ function drawHeadFlash(flash, s, layer) {
 function drawResidue(residue, s, layer) {
   const age = Math.max(0, residue.life / residue.maxLife);
   const alpha = Math.max(0.03, age ** 1.45) * layer.alpha;
-  const color = colorToCss(mix(s.textRgb, s.backgroundRgb, layer.depthRatio * 0.55));
+  const color = colorToCss(mix(s.textRgb, s.backgroundRgb, layer.depthRatio * 0.38));
   drawGlowingGlyph(residue.char, residue.x, residue.y, color, alpha, s.glow * (0.58 + layer.frontRatio * 0.36), s.glyphGlow * 1.18, s.glyphBlur);
 }
 
@@ -603,7 +607,7 @@ function randomize() {
   controls.varianceMode.value = ["uniform", "center", "extreme", "slow", "fast"][Math.floor(Math.random() * 5)];
   controls.glow.value = String(2 + Math.floor(Math.random() * 10));
   controls.glyphGlow.value = String(85 + Math.floor(Math.random() * 105));
-  controls.glyphBlur.value = String(Math.floor(Math.random() * 3));
+  controls.glyphBlur.value = String(Math.floor(Math.random() * 10));
   normalizeSpeedBounds();
   resetRain();
 }
