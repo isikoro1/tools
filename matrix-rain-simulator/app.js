@@ -317,6 +317,7 @@ function makeColumn(index, s, layer, spreadStart = false) {
     timer: 0,
     skip: Math.random() > Math.min(1, s.density * (0.94 + layer.alpha * 0.08)),
     residues: [],
+    flashes: [],
   };
 }
 
@@ -391,19 +392,20 @@ function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity, blur) {
   ctx.fillText(char, x, y);
 }
 
-function drawHeadFlash(x, y, s, layer) {
-  const size = layer.fontSize * 0.92;
+function drawHeadFlash(flash, s, layer) {
+  const age = Math.max(0, flash.life / flash.maxLife);
+  const size = layer.fontSize * (0.78 + age * 0.28);
   const flashColor = colorToCss(mix(s.headRgb, [255, 255, 255], 0.72));
-  ctx.globalAlpha = layer.alpha * (0.22 + layer.frontRatio * 0.28);
-  ctx.shadowBlur = s.glow * (1.7 + layer.frontRatio * 1.2);
+  ctx.globalAlpha = age ** 1.8 * layer.alpha * (0.18 + layer.frontRatio * 0.38);
+  ctx.shadowBlur = s.glow * (2.4 + layer.frontRatio * 2.4);
   ctx.shadowColor = flashColor;
   ctx.fillStyle = flashColor;
-  ctx.fillRect(x - size / 2, y - size / 2, size, size);
-  ctx.globalAlpha = layer.alpha * (0.45 + layer.frontRatio * 0.32);
-  ctx.shadowBlur = s.glow * (1.1 + layer.frontRatio);
+  ctx.fillRect(flash.x - size / 2, flash.y - size / 2, size, size);
+  ctx.globalAlpha = age * layer.alpha * (0.42 + layer.frontRatio * 0.42);
+  ctx.shadowBlur = s.glow * (1.4 + layer.frontRatio * 1.5);
   ctx.strokeStyle = flashColor;
   ctx.lineWidth = Math.max(1, layer.fontSize * 0.06);
-  ctx.strokeRect(x - size / 2, y - size / 2, size, size);
+  ctx.strokeRect(flash.x - size / 2, flash.y - size / 2, size, size);
 }
 
 function drawResidue(residue, s, layer) {
@@ -421,18 +423,21 @@ function drawHead(column, s, layer) {
   const base = mix(s.textRgb, s.headRgb, 0.22 + layer.frontRatio * 0.3);
   const color = colorToCss(mix(base, [255, 255, 255], 0.2 + layer.frontRatio * 0.35));
 
-  drawHeadFlash(point.x, point.y, s, layer);
-  drawGlowingGlyph(column.headChar, point.x, point.y, color, layer.alpha, s.glow * (0.95 + layer.frontRatio * 0.6), s.glyphGlow, s.glyphBlur);
+  drawGlowingGlyph(column.headChar, point.x, point.y, color, layer.alpha, s.glow * (1.35 + layer.frontRatio * 0.95), s.glyphGlow * 1.25, s.glyphBlur);
 }
 
 function drawColumn(column, s, layer) {
   prepareText(layer, s);
+  column.flashes.forEach((flash) => drawHeadFlash(flash, s, layer));
   column.residues.forEach((residue) => drawResidue(residue, s, layer));
   drawHead(column, s, layer);
   ctx.globalAlpha = 1;
 }
 
-function fadeResidues(column, elapsedSeconds, s) {
+function animateColumnEffects(column, elapsedSeconds, s) {
+  column.flashes = column.flashes
+    .map((flash) => ({ ...flash, life: flash.life - elapsedSeconds }))
+    .filter((flash) => flash.life > 0);
   column.residues = column.residues
     .map((residue) => ({
       ...residue,
@@ -489,8 +494,6 @@ function stepColumn(column, s, layer, index, elapsedSeconds, budget) {
     return;
   }
 
-  fadeResidues(column, elapsedSeconds, s);
-
   column.timer += elapsedSeconds;
   const interval = 1 / column.cps;
   let typed = 0;
@@ -502,6 +505,11 @@ function stepColumn(column, s, layer, index, elapsedSeconds, budget) {
     const canCreateResidue = previousHeadFlow >= -layer.fontSize && previousHeadFlow <= flowExtent(s) + layer.fontSize;
     const canStoreResidue = column.residues.length < maxResidues && budget.count < budget.limit;
 
+    if (canCreateResidue && !canStoreResidue) {
+      column.timer = interval;
+      return;
+    }
+
     if (canCreateResidue && canStoreResidue) {
       const point = flowPoint(column.x, previousHeadFlow, s);
       column.residues.unshift({
@@ -510,6 +518,12 @@ function stepColumn(column, s, layer, index, elapsedSeconds, budget) {
         char: column.headChar,
         life: maxLife,
         maxLife,
+      });
+      column.flashes.unshift({
+        x: point.x,
+        y: point.y,
+        life: 0.18,
+        maxLife: 0.18,
       });
       budget.count += 1;
     }
@@ -533,9 +547,9 @@ function tickRain(elapsedSeconds = 1 / 30) {
   paintBackground(s);
   layers.forEach((layer) => {
     layer.columns.forEach((column, index) => {
+      animateColumnEffects(column, elapsedSeconds, s);
       if (column.skip) {
-        fadeResidues(column, elapsedSeconds, s);
-        if (column.residues.length > 0) {
+        if (column.residues.length > 0 || column.flashes.length > 0) {
           drawColumn(column, s, layer);
         }
         stepSkippedColumn(column, s, layer, index, elapsedSeconds);
