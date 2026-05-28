@@ -38,6 +38,7 @@ const controls = {
   exportVideoBtn: document.querySelector("#exportVideoBtn"),
   gifFps: document.querySelector("#gifFps"),
   gifSeconds: document.querySelector("#gifSeconds"),
+  videoSeconds: document.querySelector("#videoSeconds"),
   saveJsonBtn: document.querySelector("#saveJsonBtn"),
   loadJsonBtn: document.querySelector("#loadJsonBtn"),
   loadJsonInput: document.querySelector("#loadJsonInput"),
@@ -72,6 +73,7 @@ const settingKeys = [
   "paused",
   "gifFps",
   "gifSeconds",
+  "videoSeconds",
 ];
 
 const latin = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -102,6 +104,7 @@ const defaultConfig = {
   paused: false,
   gifFps: "12",
   gifSeconds: "2",
+  videoSeconds: "15",
 };
 const builtInPresets = {
   default: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
@@ -776,7 +779,7 @@ async function exportVideo() {
   }
 
   const fps = Number(controls.gifFps.value);
-  const seconds = Number(controls.gifSeconds.value);
+  const seconds = Number(controls.videoSeconds.value);
   const mimeType = preferredVideoMimeType();
   const chunks = [];
 
