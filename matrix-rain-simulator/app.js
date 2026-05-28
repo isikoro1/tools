@@ -114,6 +114,7 @@ const builtInPresets = {
   binary: "01",
   korean: "\uac00\ub098\ub2e4\ub77c\ub9c8\ubc14\uc0ac\uc544\uc790\ucc28\uce74\ud0c0\ud30c\ud558\uac70\ub108\ub354\ub7ec\uba38\ubc84\uc11c\uc5b4\uc800\ucc98\ucee4\ud130\ud37c\ud5c8",
   cat: "\uff86\uff6c\uff9d\uff90\uff6c\uff73\uff88\uff7a\uff8f\uff75\uff86\uff6c\uff70\uff7a\uff9e\uff7a\uff9e\uff9b\uff7d\uff98\uff93\uff8c",
+  jiro: "\u30e4\u30b5\u30a4\u30cb\u30f3\u30cb\u30af\u30a2\u30d6\u30e9\u30de\u30b7\u30de\u30b7",
 };
 let customPresets = loadCustomPresets();
 
@@ -192,6 +193,7 @@ function renderPresetOptions(selected = controls.characterPreset.value) {
     binary: "\u30d0\u30a4\u30ca\u30ea",
     korean: "\u97d3\u56fd\u8a9e",
     cat: "\u732b\u8a9e",
+    jiro: "JIRO",
   };
   controls.characterPreset.innerHTML = '<option value="">Custom</option>';
   Object.keys(builtInPresets).forEach((key) => {
