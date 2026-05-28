@@ -35,6 +35,7 @@ const controls = {
   randomizeBtn: document.querySelector("#randomizeBtn"),
   exportPngBtn: document.querySelector("#exportPngBtn"),
   exportGifBtn: document.querySelector("#exportGifBtn"),
+  exportVideoBtn: document.querySelector("#exportVideoBtn"),
   gifFps: document.querySelector("#gifFps"),
   gifSeconds: document.querySelector("#gifSeconds"),
   saveJsonBtn: document.querySelector("#saveJsonBtn"),
@@ -757,6 +758,60 @@ function exportPng() {
   }, "image/png");
 }
 
+function preferredVideoMimeType() {
+  if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return "";
+  return [
+    "video/mp4;codecs=h264",
+    "video/mp4",
+    "video/webm;codecs=vp9",
+    "video/webm;codecs=vp8",
+    "video/webm",
+  ].find((type) => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+async function exportVideo() {
+  if (!canvas.captureStream || !window.MediaRecorder) {
+    controls.exportStatus.textContent = "Video unsupported";
+    return;
+  }
+
+  const fps = Number(controls.gifFps.value);
+  const seconds = Number(controls.gifSeconds.value);
+  const mimeType = preferredVideoMimeType();
+  const chunks = [];
+
+  controls.exportVideoBtn.disabled = true;
+  controls.exportStatus.textContent = "Video recording...";
+
+  try {
+    const stream = canvas.captureStream(fps);
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    recorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) chunks.push(event.data);
+    };
+
+    const finished = new Promise((resolve, reject) => {
+      recorder.onstop = resolve;
+      recorder.onerror = () => reject(new Error("recording failed"));
+    });
+
+    recorder.start(250);
+    await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+    if (recorder.state !== "inactive") recorder.stop();
+    await finished;
+    stream.getTracks().forEach((track) => track.stop());
+
+    const type = recorder.mimeType || mimeType || "video/webm";
+    const extension = type.includes("mp4") ? "mp4" : "webm";
+    downloadBlob(new Blob(chunks, { type }), `matrix-rain-loop.${extension}`);
+    controls.exportStatus.textContent = `${extension.toUpperCase()} saved`;
+  } catch {
+    controls.exportStatus.textContent = "Video failed";
+  } finally {
+    controls.exportVideoBtn.disabled = false;
+  }
+}
+
 async function exportGif() {
   if (isExportingGif) return;
   isExportingGif = true;
@@ -952,6 +1007,7 @@ controls.defaultBtn.addEventListener("click", resetDefaults);
 controls.randomizeBtn.addEventListener("click", randomize);
 controls.exportPngBtn.addEventListener("click", exportPng);
 controls.exportGifBtn.addEventListener("click", exportGif);
+controls.exportVideoBtn.addEventListener("click", exportVideo);
 controls.saveJsonBtn.addEventListener("click", saveJson);
 controls.loadJsonBtn.addEventListener("click", () => controls.loadJsonInput.click());
 controls.loadJsonInput.addEventListener("change", () => {
