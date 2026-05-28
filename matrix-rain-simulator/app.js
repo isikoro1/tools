@@ -379,26 +379,26 @@ function prepareText(layer, s) {
 }
 
 function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity, blur) {
-  const innerGlow = Math.min(10, glow * (0.36 + intensity * 0.18));
-  const outerGlow = Math.min(24, glow * (0.62 + intensity * 0.95));
-  const haloGlow = Math.min(42, glow * (0.9 + intensity * 1.2));
+  const innerGlow = Math.min(14, glow * (0.42 + intensity * 0.28));
+  const outerGlow = Math.min(34, glow * (0.74 + intensity * 1.25));
+  const haloGlow = Math.min(58, glow * (1.12 + intensity * 1.55));
   const glowAlpha = Math.max(0, intensity);
   const blurAmount = Math.max(0, blur);
 
   if (glow > 0 && glowAlpha > 0) {
-    ctx.globalAlpha = alpha * 0.28 * glowAlpha;
+    ctx.globalAlpha = alpha * 0.36 * glowAlpha;
     ctx.shadowBlur = haloGlow;
     ctx.shadowColor = color;
     ctx.fillStyle = color;
     ctx.fillText(char, x, y);
 
-    ctx.globalAlpha = alpha * 0.62 * glowAlpha;
+    ctx.globalAlpha = alpha * 0.78 * glowAlpha;
     ctx.shadowBlur = outerGlow;
     ctx.shadowColor = color;
     ctx.fillStyle = color;
     ctx.fillText(char, x, y);
 
-    ctx.globalAlpha = alpha * 0.86 * glowAlpha;
+    ctx.globalAlpha = alpha * glowAlpha;
     ctx.shadowBlur = innerGlow;
     ctx.fillText(char, x, y);
   }
@@ -412,7 +412,7 @@ function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity, blur) {
   }
 
   ctx.globalAlpha = alpha;
-  ctx.shadowBlur = blurAmount * 1.2;
+  ctx.shadowBlur = Math.max(blurAmount * 1.2, glow * 0.16 * glowAlpha);
   ctx.shadowColor = color;
   ctx.fillStyle = color;
   ctx.fillText(char, x, y);
@@ -427,18 +427,13 @@ function drawHeadFlash(flash, s, layer) {
   ctx.shadowColor = flashColor;
   ctx.fillStyle = flashColor;
   ctx.fillRect(flash.x - size / 2, flash.y - size / 2, size, size);
-  ctx.globalAlpha = age * layer.alpha * (0.42 + layer.frontRatio * 0.42);
-  ctx.shadowBlur = s.glow * (1.4 + layer.frontRatio * 1.5);
-  ctx.strokeStyle = flashColor;
-  ctx.lineWidth = Math.max(1, layer.fontSize * 0.06);
-  ctx.strokeRect(flash.x - size / 2, flash.y - size / 2, size, size);
 }
 
 function drawResidue(residue, s, layer) {
   const age = Math.max(0, residue.life / residue.maxLife);
   const alpha = Math.max(0.03, age ** 1.45) * layer.alpha;
   const color = colorToCss(mix(s.textRgb, s.backgroundRgb, layer.depthRatio * 0.55));
-  drawGlowingGlyph(residue.char, residue.x, residue.y, color, alpha, s.glow * (0.38 + layer.frontRatio * 0.22), s.glyphGlow, s.glyphBlur);
+  drawGlowingGlyph(residue.char, residue.x, residue.y, color, alpha, s.glow * (0.58 + layer.frontRatio * 0.36), s.glyphGlow * 1.18, s.glyphBlur);
 }
 
 function drawHead(column, s, layer) {
@@ -587,7 +582,7 @@ function randomize() {
   controls.frequency.value = String(42 + Math.floor(Math.random() * 62));
   controls.displayLimit.value = String(12 + Math.floor(Math.random() * 46));
   controls.trail.value = String(12 + Math.floor(Math.random() * 19));
-  controls.direction.value = ["down", "down", "down", "up", "right", "left"][Math.floor(Math.random() * 6)];
+  controls.direction.value = "down";
   controls.characterOrder.value = ["random", "random", "sequence", "reverse"][Math.floor(Math.random() * 4)];
   controls.rowSpacing.value = String(18 + Math.floor(Math.random() * 46));
   controls.depth.value = String(1 + Math.floor(Math.random() * 3));
@@ -595,7 +590,7 @@ function randomize() {
   controls.variance.value = String(20 + Math.floor(Math.random() * 70));
   controls.varianceMode.value = ["uniform", "center", "extreme", "slow", "fast"][Math.floor(Math.random() * 5)];
   controls.glow.value = String(2 + Math.floor(Math.random() * 10));
-  controls.glyphGlow.value = String(55 + Math.floor(Math.random() * 95));
+  controls.glyphGlow.value = String(85 + Math.floor(Math.random() * 105));
   controls.glyphBlur.value = String(Math.floor(Math.random() * 3));
   normalizeSpeedBounds();
   resetRain();
