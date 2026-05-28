@@ -86,8 +86,33 @@
             <input id="density" type="range" min="5" max="100" value="88" />
           </label>
           <label class="field">
+            <span>&#x6587;&#x5b57;&#x983b;&#x5ea6;</span>
+            <input id="frequency" type="range" min="10" max="180" value="100" />
+          </label>
+          <label class="field">
+            <span>&#x8868;&#x793a;&#x4e0a;&#x9650;&#x6570;</span>
+            <input id="displayLimit" type="range" min="80" max="2200" step="20" value="780" />
+          </label>
+          <label class="field">
             <span>&#x6b8b;&#x50cf;</span>
             <input id="trail" type="range" min="1" max="80" value="34" />
+          </label>
+          <label class="field">
+            <span>&#x65b9;&#x5411;</span>
+            <select id="direction">
+              <option value="down" selected>&#x4e0b;</option>
+              <option value="up">&#x4e0a;</option>
+              <option value="right">&#x53f3;</option>
+              <option value="left">&#x5de6;</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>&#x6587;&#x5b57;&#x9806;</span>
+            <select id="characterOrder">
+              <option value="random" selected>Random</option>
+              <option value="sequence">Sequence</option>
+              <option value="reverse">Reverse</option>
+            </select>
           </label>
           <label class="field">
             <span>&#x6587;&#x5b57;&#x9593;&#x9694;</span>

@@ -12,7 +12,11 @@ const controls = {
   speedMin: document.querySelector("#speedMin"),
   speedMax: document.querySelector("#speedMax"),
   density: document.querySelector("#density"),
+  frequency: document.querySelector("#frequency"),
+  displayLimit: document.querySelector("#displayLimit"),
   trail: document.querySelector("#trail"),
+  direction: document.querySelector("#direction"),
+  characterOrder: document.querySelector("#characterOrder"),
   rowSpacing: document.querySelector("#rowSpacing"),
   fontWeight: document.querySelector("#fontWeight"),
   depth: document.querySelector("#depth"),
@@ -48,7 +52,11 @@ const settingKeys = [
   "speedMin",
   "speedMax",
   "density",
+  "frequency",
+  "displayLimit",
   "trail",
+  "direction",
+  "characterOrder",
   "rowSpacing",
   "depth",
   "depthStrength",
@@ -74,7 +82,11 @@ const defaultConfig = {
   speedMin: "7",
   speedMax: "18",
   density: "88",
+  frequency: "100",
+  displayLimit: "780",
   trail: "34",
+  direction: "down",
+  characterOrder: "random",
   rowSpacing: "35",
   depth: "2",
   depthStrength: "36",
@@ -122,7 +134,11 @@ function settings() {
     speedMin,
     speedMax,
     density: Number(controls.density.value) / 100,
+    frequency: Number(controls.frequency.value) / 100,
+    displayLimit: Number(controls.displayLimit.value),
     trail: Number(controls.trail.value),
+    direction: controls.direction.value,
+    characterOrder: controls.characterOrder.value,
     rowSpacing: Math.max(8, Number(controls.rowSpacing.value)) / 100,
     depth: Number(controls.depth.value),
     depthStrength: Number(controls.depthStrength.value) / 100,
@@ -201,6 +217,43 @@ function randomBetween(min, max) {
   return min + Math.random() * (max - min);
 }
 
+function characterAt(chars, index) {
+  const glyphs = Array.from(chars);
+  return glyphs[((index % glyphs.length) + glyphs.length) % glyphs.length] || "\uff10";
+}
+
+function nextCharacter(column, s) {
+  if (s.characterOrder === "sequence") {
+    column.charIndex += 1;
+    return characterAt(s.characters, column.charIndex);
+  }
+  if (s.characterOrder === "reverse") {
+    column.charIndex -= 1;
+    return characterAt(s.characters, column.charIndex);
+  }
+  column.charIndex = Math.floor(Math.random() * Array.from(s.characters).length);
+  return characterAt(s.characters, column.charIndex);
+}
+
+function isHorizontal(s) {
+  return s.direction === "left" || s.direction === "right";
+}
+
+function flowExtent(s) {
+  return isHorizontal(s) ? width : height;
+}
+
+function laneExtent(s) {
+  return isHorizontal(s) ? height : width;
+}
+
+function flowPoint(lanePosition, flowPosition, s) {
+  if (s.direction === "up") return { x: lanePosition, y: height - flowPosition };
+  if (s.direction === "right") return { x: flowPosition, y: lanePosition };
+  if (s.direction === "left") return { x: width - flowPosition, y: lanePosition };
+  return { x: lanePosition, y: flowPosition };
+}
+
 function distributionSample(mode) {
   const a = Math.random();
   const b = Math.random();
@@ -221,7 +274,7 @@ function makeLayer(layerIndex, s) {
   const fontSize = Math.max(8, Math.round(s.fontSize * scale));
   const spacing = fontSize * randomBetween(0.95, 1.08);
   const rowStep = fontSize * (0.78 + s.rowSpacing * 1.38);
-  const count = Math.ceil(width / spacing) + 2;
+  const count = Math.ceil(laneExtent(s) / spacing) + 2;
 
   const layer = {
     alpha,
@@ -239,17 +292,19 @@ function makeLayer(layerIndex, s) {
 function makeColumn(index, s, layer, spreadStart = false) {
   const varianceMin = Math.max(0.02, 1 - s.variance * 0.95);
   const varianceMax = 1 + s.variance * 2.8;
-  const rowCount = Math.ceil(height / layer.rowStep) + 4;
+  const rowCount = Math.ceil(flowExtent(s) / layer.rowStep) + 4;
   const startDelay = spreadStart ? Math.floor(randomBetween(0, rowCount * 1.6)) : Math.floor(randomBetween(0, 8));
   const baseCps = randomBetween(s.speedMin, s.speedMax);
   const varianceFactor = varianceMin + (varianceMax - varianceMin) * distributionSample(s.varianceMode);
   const minVisibleCps = Math.max(1.2, s.speedMin * 0.35 * layer.speedScale);
-  const cps = Math.max(minVisibleCps, baseCps * varianceFactor * layer.speedScale);
+  const cps = Math.max(minVisibleCps, baseCps * varianceFactor * layer.speedScale * s.frequency);
+  const charIndex = Math.floor(Math.random() * Array.from(s.characters).length);
 
   return {
     x: index * layer.spacing + layer.spacing / 2,
     row: -1,
-    headChar: randomChar(s.characters),
+    charIndex,
+    headChar: characterAt(s.characters, charIndex),
     startDelay,
     cps,
     timer: 0,
@@ -337,10 +392,11 @@ function drawResidue(residue, s, layer) {
 
 function drawHead(column, s, layer) {
   if (column.startDelay > 0) return;
-  const headY = column.row * layer.rowStep + layer.rowStep / 2;
-  if (headY < -layer.rowStep || headY > height + layer.rowStep) return;
+  const headFlow = column.row * layer.rowStep + layer.rowStep / 2;
+  if (headFlow < -layer.rowStep || headFlow > flowExtent(s) + layer.rowStep) return;
+  const point = flowPoint(column.x, headFlow, s);
 
-  drawGlowingGlyph(column.headChar, column.x, headY, s.headColor, layer.alpha, s.glow * 1.25, s.glyphGlow, s.glyphBlur);
+  drawGlowingGlyph(column.headChar, point.x, point.y, s.headColor, layer.alpha, s.glow * 1.25, s.glyphGlow, s.glyphBlur);
 }
 
 function drawColumn(column, s, layer) {
@@ -375,12 +431,26 @@ function maxResidueCount(column, s, layer) {
   const speedRatio = Math.min(1, Math.max(0, (column.cps - minCps) / (maxCps - minCps || 1)));
   const slowPenalty = 0.38 + speedRatio * 0.62;
   const baseCount = Math.ceil(Math.max(0.1, s.trail / 10) * column.cps);
-  const visibleRows = Math.ceil(height / layer.rowStep);
+  const visibleRows = Math.ceil(flowExtent(s) / layer.rowStep);
   const minimumTail = Math.min(visibleRows + 2, Math.max(4, Math.round(s.trail / 9)));
   return Math.max(minimumTail, Math.min(96, Math.round(baseCount * slowPenalty) + 1));
 }
 
-function stepColumn(column, s, layer, index, elapsedSeconds) {
+function activeGlyphCount(s) {
+  let count = 0;
+  layers.forEach((layer) => {
+    layer.columns.forEach((column) => {
+      count += column.residues.length;
+      const headFlow = column.row * layer.rowStep + layer.rowStep / 2;
+      if (!column.skip && column.startDelay <= 0 && headFlow >= -layer.rowStep && headFlow <= flowExtent(s) + layer.rowStep) {
+        count += 1;
+      }
+    });
+  });
+  return count;
+}
+
+function stepColumn(column, s, layer, index, elapsedSeconds, budget) {
   if (column.startDelay > 0) {
     column.startDelay -= elapsedSeconds * column.cps;
     return;
@@ -393,31 +463,34 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
   let typed = 0;
 
   while (column.timer >= interval && typed < 6) {
-    const previousHeadY = column.row * layer.rowStep + layer.rowStep / 2;
+    const previousHeadFlow = column.row * layer.rowStep + layer.rowStep / 2;
     const maxLife = Math.max(0.1, s.trail / 10);
     const maxResidues = maxResidueCount(column, s, layer);
+    const canCreateResidue = previousHeadFlow >= -layer.fontSize && previousHeadFlow <= flowExtent(s) + layer.fontSize;
 
-    if (previousHeadY >= -layer.fontSize && previousHeadY <= height + layer.fontSize && column.residues.length >= maxResidues) {
+    if (canCreateResidue && (column.residues.length >= maxResidues || budget.count >= budget.limit)) {
       column.timer = interval;
       return;
     }
 
-    if (previousHeadY >= -layer.fontSize && previousHeadY <= height + layer.fontSize) {
+    if (canCreateResidue) {
+      const point = flowPoint(column.x, previousHeadFlow, s);
       column.residues.unshift({
-        x: column.x,
-        y: previousHeadY,
+        x: point.x,
+        y: point.y,
         char: column.headChar,
         life: maxLife,
         maxLife,
       });
+      budget.count += 1;
     }
 
     column.row += 1;
-    column.headChar = randomChar(s.characters);
+    column.headChar = nextCharacter(column, s);
     column.timer -= interval;
     typed += 1;
 
-    if (column.row * layer.rowStep > height + maxLife * column.cps * layer.rowStep) {
+    if (column.row * layer.rowStep > flowExtent(s) + maxLife * column.cps * layer.rowStep) {
       replaceColumn(index, s, layer, column.residues);
       return;
     }
@@ -426,6 +499,7 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
 
 function tickRain(elapsedSeconds = 1 / 30) {
   const s = settings();
+  const budget = { count: activeGlyphCount(s), limit: s.displayLimit };
   paintBackground(s);
   layers.forEach((layer) => {
     layer.columns.forEach((column, index) => {
@@ -438,7 +512,7 @@ function tickRain(elapsedSeconds = 1 / 30) {
         return;
       }
       drawColumn(column, s, layer);
-      stepColumn(column, s, layer, index, elapsedSeconds);
+      stepColumn(column, s, layer, index, elapsedSeconds, budget);
     });
   });
 }
@@ -476,16 +550,20 @@ function randomize() {
   controls.fontSize.value = String(12 + Math.floor(Math.random() * 17));
   controls.speedMin.value = String(4 + Math.floor(Math.random() * 8));
   controls.speedMax.value = String(12 + Math.floor(Math.random() * 18));
-  controls.density.value = String(16 + Math.floor(Math.random() * 72));
-  controls.trail.value = String(24 + Math.floor(Math.random() * 19));
-  controls.rowSpacing.value = String(8 + Math.floor(Math.random() * 52));
-  controls.depth.value = String(1 + Math.floor(Math.random() * 5));
+  controls.density.value = String(14 + Math.floor(Math.random() * 58));
+  controls.frequency.value = String(45 + Math.floor(Math.random() * 75));
+  controls.displayLimit.value = String(360 + Math.floor(Math.random() * 540));
+  controls.trail.value = String(16 + Math.floor(Math.random() * 21));
+  controls.direction.value = ["down", "down", "down", "up", "right", "left"][Math.floor(Math.random() * 6)];
+  controls.characterOrder.value = ["random", "random", "sequence", "reverse"][Math.floor(Math.random() * 4)];
+  controls.rowSpacing.value = String(16 + Math.floor(Math.random() * 46));
+  controls.depth.value = String(1 + Math.floor(Math.random() * 4));
   controls.depthStrength.value = String(12 + Math.floor(Math.random() * 36));
-  controls.variance.value = String(30 + Math.floor(Math.random() * 95));
+  controls.variance.value = String(20 + Math.floor(Math.random() * 70));
   controls.varianceMode.value = ["uniform", "center", "extreme", "slow", "fast"][Math.floor(Math.random() * 5)];
-  controls.glow.value = String(3 + Math.floor(Math.random() * 14));
-  controls.glyphGlow.value = String(65 + Math.floor(Math.random() * 135));
-  controls.glyphBlur.value = String(Math.floor(Math.random() * 5));
+  controls.glow.value = String(2 + Math.floor(Math.random() * 10));
+  controls.glyphGlow.value = String(55 + Math.floor(Math.random() * 95));
+  controls.glyphBlur.value = String(Math.floor(Math.random() * 3));
   normalizeSpeedBounds();
   resetRain();
 }
@@ -789,7 +867,11 @@ function writeSubBlocks(bytes, data) {
 [
   controls.fontSize,
   controls.density,
+  controls.frequency,
+  controls.displayLimit,
   controls.trail,
+  controls.direction,
+  controls.characterOrder,
   controls.rowSpacing,
   controls.fontWeight,
   controls.depth,
