@@ -467,13 +467,9 @@ function stepColumn(column, s, layer, index, elapsedSeconds, budget) {
     const maxLife = Math.max(0.1, s.trail / 10);
     const maxResidues = maxResidueCount(column, s, layer);
     const canCreateResidue = previousHeadFlow >= -layer.fontSize && previousHeadFlow <= flowExtent(s) + layer.fontSize;
+    const canStoreResidue = column.residues.length < maxResidues && budget.count < budget.limit;
 
-    if (canCreateResidue && (column.residues.length >= maxResidues || budget.count >= budget.limit)) {
-      column.timer = interval;
-      return;
-    }
-
-    if (canCreateResidue) {
+    if (canCreateResidue && canStoreResidue) {
       const point = flowPoint(column.x, previousHeadFlow, s);
       column.residues.unshift({
         x: point.x,
