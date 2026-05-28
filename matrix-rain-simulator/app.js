@@ -118,6 +118,7 @@ const builtInPresets = {
   hindi: "\u0905\u0906\u0907\u0908\u0909\u090a\u090f\u0910\u0913\u0914\u0915\u0916\u0917\u0918\u091a\u091b\u091c\u091d\u091f\u0920\u0921\u0922\u0924\u0925\u0926\u0927\u0928\u092a\u092b\u092c\u092d\u092e\u092f\u0930\u0932\u0935\u0936\u0937\u0938\u0939\u0966\u0967\u0968\u0969\u096a\u096b\u096c\u096d\u096e\u096f",
   jiro: "\u30e4\u30b5\u30a4\u30cb\u30f3\u30cb\u30af\u30a2\u30d6\u30e9\u30de\u30b7\u30de\u30b7",
   gal: "\u3061\u3087w\n\u30a6\u30b1\u308b\n\u30de\u30b8\u534d\n\u30de\u30b8\u30d1\u306a\u3044\n\u30d1\u30e9\u30d1\u30e9",
+  war: "\u304d\u306e\u3053\n\u305f\u3051\u306e\u3053",
 };
 let customPresets = loadCustomPresets();
 
@@ -205,6 +206,7 @@ function renderPresetOptions(selected = controls.characterPreset.value) {
     hindi: "\u30d2\u30f3\u30c9\u30a5\u30fc\u8a9e",
     jiro: "JIRO",
     gal: "GAL",
+    war: "WAR",
   };
   controls.characterPreset.innerHTML = '<option value="">Custom</option>';
   Object.keys(builtInPresets).forEach((key) => {
