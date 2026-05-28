@@ -115,6 +115,7 @@ const builtInPresets = {
   korean: "\uac00\ub098\ub2e4\ub77c\ub9c8\ubc14\uc0ac\uc544\uc790\ucc28\uce74\ud0c0\ud30c\ud558\uac70\ub108\ub354\ub7ec\uba38\ubc84\uc11c\uc5b4\uc800\ucc98\ucee4\ud130\ud37c\ud5c8",
   cat: "\uff86\uff6c\uff9d\uff90\uff6c\uff73\uff88\uff7a\uff8f\uff75\uff86\uff6c\uff70\uff7a\uff9e\uff7a\uff9e\uff9b\uff7d\uff98\uff93\uff8c",
   jiro: "\u30e4\u30b5\u30a4\u30cb\u30f3\u30cb\u30af\u30a2\u30d6\u30e9\u30de\u30b7\u30de\u30b7",
+  gal: "\u3061\u3087w\n\u30a6\u30b1\u308b\n\u30de\u30b8\u534d\n\u30de\u30b8\u30d1\u306a\u3044\n\u30d1\u30e9\u30d1\u30e9",
 };
 let customPresets = loadCustomPresets();
 
@@ -154,14 +155,19 @@ function settings() {
     textRgb: hexToRgb(controls.textColor.value),
     headRgb: hexToRgb(controls.headColor.value),
     backgroundRgb: hexToRgb(controls.backgroundColor.value),
-    characters: buildCharacters(),
+    characterPatterns: buildCharacterPatterns(),
   };
 }
 
-function buildCharacters() {
+function buildCharacterPatterns() {
   const custom = controls.characters.value.trim();
   const base = custom.length ? custom : latin;
-  return Array.from(base, toFullWidth).join("");
+  return base
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => Array.from(line, toFullWidth).join(""))
+    .filter(Boolean);
 }
 
 function allPresets() {
@@ -194,6 +200,7 @@ function renderPresetOptions(selected = controls.characterPreset.value) {
     korean: "\u97d3\u56fd\u8a9e",
     cat: "\u732b\u8a9e",
     jiro: "JIRO",
+    gal: "GAL",
   };
   controls.characterPreset.innerHTML = '<option value="">Custom</option>';
   Object.keys(builtInPresets).forEach((key) => {
@@ -230,14 +237,14 @@ function characterAt(chars, index) {
 function nextCharacter(column, s) {
   if (s.characterOrder === "sequence") {
     column.charIndex += 1;
-    return characterAt(s.characters, column.charIndex);
+    return characterAt(column.pattern, column.charIndex);
   }
   if (s.characterOrder === "reverse") {
     column.charIndex -= 1;
-    return characterAt(s.characters, column.charIndex);
+    return characterAt(column.pattern, column.charIndex);
   }
-  column.charIndex = Math.floor(Math.random() * Array.from(s.characters).length);
-  return characterAt(s.characters, column.charIndex);
+  column.charIndex = Math.floor(Math.random() * Array.from(column.pattern).length);
+  return characterAt(column.pattern, column.charIndex);
 }
 
 function isHorizontal(s) {
@@ -333,13 +340,15 @@ function makeColumn(index, s, layer, spreadStart = false, activeCount = countAct
   const varianceFactor = varianceMin + (varianceMax - varianceMin) * distributionSample(s.varianceMode);
   const minVisibleCps = Math.max(1.2, s.speedMin * 0.35 * layer.speedScale);
   const cps = Math.max(minVisibleCps, baseCps * varianceFactor * layer.speedScale * s.frequency);
-  const charIndex = Math.floor(Math.random() * Array.from(s.characters).length);
+  const pattern = s.characterPatterns[Math.floor(Math.random() * s.characterPatterns.length)] || "\uff10";
+  const charIndex = Math.floor(Math.random() * Array.from(pattern).length);
 
   return {
     x: index * layer.spacing + layer.spacing / 2,
     row: -1,
+    pattern,
     charIndex,
-    headChar: characterAt(s.characters, charIndex),
+    headChar: characterAt(pattern, charIndex),
     startDelay,
     cps,
     timer: 0,
@@ -464,7 +473,7 @@ function animateColumnEffects(column, elapsedSeconds, s) {
   column.residues = column.residues
     .map((residue) => ({
       ...residue,
-      char: Math.random() < elapsedSeconds * 0.9 ? randomChar(s.characters) : residue.char,
+      char: Math.random() < elapsedSeconds * 0.9 ? randomChar(residue.pattern || column.pattern) : residue.char,
       life: residue.life - elapsedSeconds,
     }))
     .filter((residue) => residue.life > 0);
@@ -505,6 +514,7 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
         x: point.x,
         y: point.y,
         char: column.headChar,
+        pattern: column.pattern,
         life: maxLife,
         maxLife,
       });
