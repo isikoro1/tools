@@ -1,3 +1,16 @@
+@font-face {
+  font-family: "Noto Sans Siddham";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src:
+    url("https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-siddham@latest/siddham-400-normal.woff2")
+      format("woff2"),
+    url("https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-siddham@latest/siddham-400-normal.woff")
+      format("woff");
+  unicode-range: U+11580-115FF;
+}
+
 :root {
   color-scheme: dark;
   font-family:

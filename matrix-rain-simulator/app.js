@@ -390,7 +390,7 @@ function paintBackground(s) {
 }
 
 function prepareText(layer, s) {
-  ctx.font = `${s.fontWeight} ${layer.fontSize}px "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", monospace`;
+  ctx.font = `${s.fontWeight} ${layer.fontSize}px "Noto Sans Siddham", "Noto Sans Devanagari", "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", monospace`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 }
@@ -967,4 +967,7 @@ renderPresetOptions("matrix");
 controls.characterPreset.value = "matrix";
 normalizeSpeedBounds();
 resize();
+if (document.fonts && document.fonts.load) {
+  document.fonts.load('400 24px "Noto Sans Siddham"').then(resetRain).catch(() => {});
+}
 requestAnimationFrame(frame);
