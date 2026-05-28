@@ -150,6 +150,9 @@ function settings() {
     textColor: controls.textColor.value,
     headColor: controls.headColor.value,
     backgroundColor: controls.backgroundColor.value,
+    textRgb: hexToRgb(controls.textColor.value),
+    headRgb: hexToRgb(controls.headColor.value),
+    backgroundRgb: hexToRgb(controls.backgroundColor.value),
     characters: buildCharacters(),
   };
 }
@@ -267,9 +270,10 @@ function distributionSample(mode) {
 function makeLayer(layerIndex, s) {
   const denominator = Math.max(1, s.depth - 1);
   const depthRatio = s.depth === 1 ? 1 : layerIndex / denominator;
-  const depthAmount = s.depthStrength * depthRatio;
+  const frontRatio = s.depth === 1 ? 1 : 1 - depthRatio;
+  const depthAmount = s.depthStrength * frontRatio;
   const scale = 1 - s.depthStrength * 0.22 + depthAmount * 0.32;
-  const alpha = 0.42 + depthAmount * 0.58;
+  const alpha = 0.16 + depthAmount * 0.84;
   const speedScale = 0.72 + depthAmount * 0.42;
   const fontSize = Math.max(8, Math.round(s.fontSize * scale));
   const spacing = fontSize * randomBetween(0.95, 1.08);
@@ -278,6 +282,8 @@ function makeLayer(layerIndex, s) {
 
   const layer = {
     alpha,
+    depthRatio,
+    frontRatio,
     fontSize,
     spacing,
     rowStep,
@@ -385,10 +391,26 @@ function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity, blur) {
   ctx.fillText(char, x, y);
 }
 
+function drawHeadFlash(x, y, s, layer) {
+  const size = layer.fontSize * 0.92;
+  const flashColor = colorToCss(mix(s.headRgb, [255, 255, 255], 0.72));
+  ctx.globalAlpha = layer.alpha * (0.22 + layer.frontRatio * 0.28);
+  ctx.shadowBlur = s.glow * (1.7 + layer.frontRatio * 1.2);
+  ctx.shadowColor = flashColor;
+  ctx.fillStyle = flashColor;
+  ctx.fillRect(x - size / 2, y - size / 2, size, size);
+  ctx.globalAlpha = layer.alpha * (0.45 + layer.frontRatio * 0.32);
+  ctx.shadowBlur = s.glow * (1.1 + layer.frontRatio);
+  ctx.strokeStyle = flashColor;
+  ctx.lineWidth = Math.max(1, layer.fontSize * 0.06);
+  ctx.strokeRect(x - size / 2, y - size / 2, size, size);
+}
+
 function drawResidue(residue, s, layer) {
   const age = Math.max(0, residue.life / residue.maxLife);
-  const alpha = Math.max(0.04, age ** 1.45) * layer.alpha;
-  drawGlowingGlyph(residue.char, residue.x, residue.y, s.textColor, alpha, s.glow * 0.55, s.glyphGlow, s.glyphBlur);
+  const alpha = Math.max(0.03, age ** 1.45) * layer.alpha;
+  const color = colorToCss(mix(s.textRgb, s.backgroundRgb, layer.depthRatio * 0.55));
+  drawGlowingGlyph(residue.char, residue.x, residue.y, color, alpha, s.glow * (0.38 + layer.frontRatio * 0.22), s.glyphGlow, s.glyphBlur);
 }
 
 function drawHead(column, s, layer) {
@@ -396,8 +418,11 @@ function drawHead(column, s, layer) {
   const headFlow = column.row * layer.rowStep + layer.rowStep / 2;
   if (headFlow < -layer.rowStep || headFlow > flowExtent(s) + layer.rowStep) return;
   const point = flowPoint(column.x, headFlow, s);
+  const base = mix(s.textRgb, s.headRgb, 0.22 + layer.frontRatio * 0.3);
+  const color = colorToCss(mix(base, [255, 255, 255], 0.2 + layer.frontRatio * 0.35));
 
-  drawGlowingGlyph(column.headChar, point.x, point.y, s.headColor, layer.alpha, s.glow * 1.25, s.glyphGlow, s.glyphBlur);
+  drawHeadFlash(point.x, point.y, s, layer);
+  drawGlowingGlyph(column.headChar, point.x, point.y, color, layer.alpha, s.glow * (0.95 + layer.frontRatio * 0.6), s.glyphGlow, s.glyphBlur);
 }
 
 function drawColumn(column, s, layer) {
@@ -407,9 +432,13 @@ function drawColumn(column, s, layer) {
   ctx.globalAlpha = 1;
 }
 
-function fadeResidues(column, elapsedSeconds) {
+function fadeResidues(column, elapsedSeconds, s) {
   column.residues = column.residues
-    .map((residue) => ({ ...residue, life: residue.life - elapsedSeconds }))
+    .map((residue) => ({
+      ...residue,
+      char: Math.random() < elapsedSeconds * 0.9 ? randomChar(s.characters) : residue.char,
+      life: residue.life - elapsedSeconds,
+    }))
     .filter((residue) => residue.life > 0);
 }
 
@@ -460,7 +489,7 @@ function stepColumn(column, s, layer, index, elapsedSeconds, budget) {
     return;
   }
 
-  fadeResidues(column, elapsedSeconds);
+  fadeResidues(column, elapsedSeconds, s);
 
   column.timer += elapsedSeconds;
   const interval = 1 / column.cps;
@@ -505,7 +534,7 @@ function tickRain(elapsedSeconds = 1 / 30) {
   layers.forEach((layer) => {
     layer.columns.forEach((column, index) => {
       if (column.skip) {
-        fadeResidues(column, elapsedSeconds);
+        fadeResidues(column, elapsedSeconds, s);
         if (column.residues.length > 0) {
           drawColumn(column, s, layer);
         }
@@ -802,6 +831,10 @@ function hexToRgb(hex) {
 
 function mix(a, b, amount) {
   return a.map((value, index) => Math.round(value + (b[index] - value) * amount));
+}
+
+function colorToCss(rgb) {
+  return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
 }
 
 function indexPixels(data, palette) {
