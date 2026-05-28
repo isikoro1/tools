@@ -81,9 +81,9 @@ const defaultConfig = {
   fontWeight: "500",
   speedMin: "7",
   speedMax: "18",
-  density: "88",
+  density: "54",
   frequency: "100",
-  displayLimit: "780",
+  displayLimit: "42",
   trail: "34",
   direction: "down",
   characterOrder: "random",
@@ -291,11 +291,38 @@ function makeLayer(layerIndex, s) {
     columns: [],
   };
 
-  layer.columns = Array.from({ length: count }, (_, index) => makeColumn(index, s, layer, true));
+  layer.columns = [];
+  for (let index = 0; index < count; index += 1) {
+    const activeCount = countActiveColumns() + layer.columns.filter((column) => !column.skip).length;
+    layer.columns.push(makeColumn(index, s, layer, true, activeCount));
+  }
   return layer;
 }
 
-function makeColumn(index, s, layer, spreadStart = false) {
+function speedRatioForColumn(cps, s, layer) {
+  const varianceMin = Math.max(0.02, 1 - s.variance * 0.95);
+  const varianceMax = 1 + s.variance * 2.8;
+  const minCps = Math.max(1.2, s.speedMin * 0.35 * layer.speedScale);
+  const maxCps = Math.max(minCps, s.speedMax * varianceMax * layer.speedScale * s.frequency);
+  return Math.min(1, Math.max(0, (cps - minCps) / (maxCps - minCps || 1)));
+}
+
+function shouldSkipColumn(cps, s, layer, activeCount) {
+  if (activeCount >= s.displayLimit) return true;
+  const speedRatio = speedRatioForColumn(cps, s, layer);
+  const densityChance = Math.min(0.72, s.density * 0.58);
+  const slowGate = 0.04 + speedRatio * 0.96;
+  return Math.random() > densityChance * slowGate;
+}
+
+function countActiveColumns() {
+  return layers.reduce(
+    (total, layer) => total + layer.columns.filter((column) => !column.skip).length,
+    0,
+  );
+}
+
+function makeColumn(index, s, layer, spreadStart = false, activeCount = countActiveColumns()) {
   const varianceMin = Math.max(0.02, 1 - s.variance * 0.95);
   const varianceMax = 1 + s.variance * 2.8;
   const rowCount = Math.ceil(flowExtent(s) / layer.rowStep) + 4;
@@ -313,9 +340,8 @@ function makeColumn(index, s, layer, spreadStart = false) {
     headChar: characterAt(s.characters, charIndex),
     startDelay,
     cps,
-    residueLimit: 1,
     timer: 0,
-    skip: Math.random() > Math.min(1, s.density * (0.94 + layer.alpha * 0.08)),
+    skip: shouldSkipColumn(cps, s, layer, activeCount),
     residues: [],
     flashes: [],
   };
@@ -448,7 +474,8 @@ function animateColumnEffects(column, elapsedSeconds, s) {
 }
 
 function replaceColumn(index, s, layer, residues = []) {
-  const nextColumn = makeColumn(index, s, layer, false);
+  const retiringWasActive = layer.columns[index] && !layer.columns[index].skip ? 1 : 0;
+  const nextColumn = makeColumn(index, s, layer, false, Math.max(0, countActiveColumns() - retiringWasActive));
   nextColumn.residues = residues;
   layer.columns[index] = nextColumn;
 }
@@ -460,35 +487,7 @@ function stepSkippedColumn(column, s, layer, index, elapsedSeconds) {
   }
 }
 
-function updateResidueLimits() {
-  const columns = layers.flatMap((layer) => layer.columns);
-  columns
-    .slice()
-    .sort((a, b) => a.cps - b.cps)
-    .forEach((column, index) => {
-      column.residueLimit = index + 1;
-    });
-}
-
-function maxResidueCount(column) {
-  return Math.max(1, column.residueLimit || 1);
-}
-
-function activeGlyphCount(s) {
-  let count = 0;
-  layers.forEach((layer) => {
-    layer.columns.forEach((column) => {
-      count += column.residues.length;
-      const headFlow = column.row * layer.rowStep + layer.rowStep / 2;
-      if (!column.skip && column.startDelay <= 0 && headFlow >= -layer.rowStep && headFlow <= flowExtent(s) + layer.rowStep) {
-        count += 1;
-      }
-    });
-  });
-  return count;
-}
-
-function stepColumn(column, s, layer, index, elapsedSeconds, budget) {
+function stepColumn(column, s, layer, index, elapsedSeconds) {
   if (column.startDelay > 0) {
     column.startDelay -= elapsedSeconds * column.cps;
     return;
@@ -501,16 +500,9 @@ function stepColumn(column, s, layer, index, elapsedSeconds, budget) {
   while (column.timer >= interval && typed < 6) {
     const previousHeadFlow = column.row * layer.rowStep + layer.rowStep / 2;
     const maxLife = Math.max(0.1, s.trail / 10);
-    const maxResidues = maxResidueCount(column);
     const canCreateResidue = previousHeadFlow >= -layer.fontSize && previousHeadFlow <= flowExtent(s) + layer.fontSize;
-    const canStoreResidue = column.residues.length < maxResidues && budget.count < budget.limit;
 
-    if (canCreateResidue && !canStoreResidue) {
-      column.timer = interval;
-      return;
-    }
-
-    if (canCreateResidue && canStoreResidue) {
+    if (canCreateResidue) {
       const point = flowPoint(column.x, previousHeadFlow, s);
       column.residues.unshift({
         x: point.x,
@@ -525,7 +517,6 @@ function stepColumn(column, s, layer, index, elapsedSeconds, budget) {
         life: 0.18,
         maxLife: 0.18,
       });
-      budget.count += 1;
     }
 
     column.row += 1;
@@ -542,8 +533,6 @@ function stepColumn(column, s, layer, index, elapsedSeconds, budget) {
 
 function tickRain(elapsedSeconds = 1 / 30) {
   const s = settings();
-  const budget = { count: activeGlyphCount(s), limit: s.displayLimit };
-  updateResidueLimits();
   paintBackground(s);
   layers.forEach((layer) => {
     layer.columns.forEach((column, index) => {
@@ -556,7 +545,7 @@ function tickRain(elapsedSeconds = 1 / 30) {
         return;
       }
       drawColumn(column, s, layer);
-      stepColumn(column, s, layer, index, elapsedSeconds, budget);
+      stepColumn(column, s, layer, index, elapsedSeconds);
     });
   });
 }
@@ -594,14 +583,14 @@ function randomize() {
   controls.fontSize.value = String(12 + Math.floor(Math.random() * 17));
   controls.speedMin.value = String(4 + Math.floor(Math.random() * 8));
   controls.speedMax.value = String(12 + Math.floor(Math.random() * 18));
-  controls.density.value = String(14 + Math.floor(Math.random() * 58));
-  controls.frequency.value = String(45 + Math.floor(Math.random() * 75));
-  controls.displayLimit.value = String(360 + Math.floor(Math.random() * 540));
-  controls.trail.value = String(16 + Math.floor(Math.random() * 21));
+  controls.density.value = String(8 + Math.floor(Math.random() * 36));
+  controls.frequency.value = String(42 + Math.floor(Math.random() * 62));
+  controls.displayLimit.value = String(12 + Math.floor(Math.random() * 46));
+  controls.trail.value = String(12 + Math.floor(Math.random() * 19));
   controls.direction.value = ["down", "down", "down", "up", "right", "left"][Math.floor(Math.random() * 6)];
   controls.characterOrder.value = ["random", "random", "sequence", "reverse"][Math.floor(Math.random() * 4)];
-  controls.rowSpacing.value = String(16 + Math.floor(Math.random() * 46));
-  controls.depth.value = String(1 + Math.floor(Math.random() * 4));
+  controls.rowSpacing.value = String(18 + Math.floor(Math.random() * 46));
+  controls.depth.value = String(1 + Math.floor(Math.random() * 3));
   controls.depthStrength.value = String(12 + Math.floor(Math.random() * 36));
   controls.variance.value = String(20 + Math.floor(Math.random() * 70));
   controls.varianceMode.value = ["uniform", "center", "extreme", "slow", "fast"][Math.floor(Math.random() * 5)];
