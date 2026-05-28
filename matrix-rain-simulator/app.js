@@ -307,6 +307,7 @@ function makeColumn(index, s, layer, spreadStart = false) {
     headChar: characterAt(s.characters, charIndex),
     startDelay,
     cps,
+    residueLimit: 1,
     timer: 0,
     skip: Math.random() > Math.min(1, s.density * (0.94 + layer.alpha * 0.08)),
     residues: [],
@@ -425,15 +426,18 @@ function stepSkippedColumn(column, s, layer, index, elapsedSeconds) {
   }
 }
 
-function maxResidueCount(column, s, layer) {
-  const minCps = Math.max(0.1, s.speedMin * Math.max(0.02, 1 - s.variance * 0.95) * layer.speedScale);
-  const maxCps = Math.max(minCps, s.speedMax * (1 + s.variance * 2.8) * layer.speedScale);
-  const speedRatio = Math.min(1, Math.max(0, (column.cps - minCps) / (maxCps - minCps || 1)));
-  const slowPenalty = 0.38 + speedRatio * 0.62;
-  const baseCount = Math.ceil(Math.max(0.1, s.trail / 10) * column.cps);
-  const visibleRows = Math.ceil(flowExtent(s) / layer.rowStep);
-  const minimumTail = Math.min(visibleRows + 2, Math.max(4, Math.round(s.trail / 9)));
-  return Math.max(minimumTail, Math.min(96, Math.round(baseCount * slowPenalty) + 1));
+function updateResidueLimits() {
+  const columns = layers.flatMap((layer) => layer.columns);
+  columns
+    .slice()
+    .sort((a, b) => a.cps - b.cps)
+    .forEach((column, index) => {
+      column.residueLimit = index + 1;
+    });
+}
+
+function maxResidueCount(column) {
+  return Math.max(1, column.residueLimit || 1);
 }
 
 function activeGlyphCount(s) {
@@ -465,7 +469,7 @@ function stepColumn(column, s, layer, index, elapsedSeconds, budget) {
   while (column.timer >= interval && typed < 6) {
     const previousHeadFlow = column.row * layer.rowStep + layer.rowStep / 2;
     const maxLife = Math.max(0.1, s.trail / 10);
-    const maxResidues = maxResidueCount(column, s, layer);
+    const maxResidues = maxResidueCount(column);
     const canCreateResidue = previousHeadFlow >= -layer.fontSize && previousHeadFlow <= flowExtent(s) + layer.fontSize;
     const canStoreResidue = column.residues.length < maxResidues && budget.count < budget.limit;
 
@@ -496,6 +500,7 @@ function stepColumn(column, s, layer, index, elapsedSeconds, budget) {
 function tickRain(elapsedSeconds = 1 / 30) {
   const s = settings();
   const budget = { count: activeGlyphCount(s), limit: s.displayLimit };
+  updateResidueLimits();
   paintBackground(s);
   layers.forEach((layer) => {
     layer.columns.forEach((column, index) => {
