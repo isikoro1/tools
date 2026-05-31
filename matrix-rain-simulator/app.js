@@ -401,10 +401,11 @@ function prepareText(layer, s) {
 
 function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity, blur) {
   const glowPower = Math.max(0, intensity);
-  const innerGlow = Math.min(48, glow * (0.42 + glowPower * 0.42));
-  const outerGlow = Math.min(130, glow * (0.74 + glowPower * 2.15));
-  const haloGlow = Math.min(280, glow * (1.12 + glowPower * 3.4));
-  const alphaBoost = Math.min(4.5, glowPower);
+  const effectiveGlow = Math.log1p(glowPower * 1.8) / Math.log1p(28);
+  const innerGlow = Math.min(18, glow * (0.42 + effectiveGlow * 0.62));
+  const outerGlow = Math.min(44, glow * (0.74 + effectiveGlow * 2.15));
+  const haloGlow = Math.min(86, glow * (1.12 + effectiveGlow * 3.4));
+  const alphaBoost = Math.min(2.6, 0.35 + effectiveGlow * 2.25);
   const glowAlpha = Math.max(0, intensity);
   const blurAmount = Math.max(0, blur);
   const clampAlpha = (value) => Math.max(0, Math.min(1, value));
@@ -436,7 +437,7 @@ function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity, blur) {
   }
 
   ctx.globalAlpha = alpha;
-  ctx.shadowBlur = Math.max(blurAmount * 1.2, glow * 0.16 * Math.min(6, glowAlpha));
+  ctx.shadowBlur = Math.max(blurAmount * 1.2, glow * 0.16 * Math.min(2.6, 0.35 + effectiveGlow * 2.25));
   ctx.shadowColor = color;
   ctx.fillStyle = color;
   ctx.fillText(char, x, y);
