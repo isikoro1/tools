@@ -24,9 +24,6 @@ const controls = {
   depthStrength: document.querySelector("#depthStrength"),
   variance: document.querySelector("#variance"),
   varianceMode: document.querySelector("#varianceMode"),
-  glow: document.querySelector("#glow"),
-  glyphGlow: document.querySelector("#glyphGlow"),
-  glyphBlur: document.querySelector("#glyphBlur"),
   textColor: document.querySelector("#textColor"),
   headColor: document.querySelector("#headColor"),
   backgroundColor: document.querySelector("#backgroundColor"),
@@ -66,9 +63,6 @@ const settingKeys = [
   "depthStrength",
   "variance",
   "varianceMode",
-  "glow",
-  "glyphGlow",
-  "glyphBlur",
   "textColor",
   "headColor",
   "backgroundColor",
@@ -79,6 +73,11 @@ const settingKeys = [
 ];
 
 const latin = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+const fixedGlowSettings = {
+  glow: 14,
+  glyphGlow: 1.7,
+  glyphBlur: 7,
+};
 
 // Dボタンや設定リセットで使う初期値。
 const defaultConfig = {
@@ -99,9 +98,6 @@ const defaultConfig = {
   depthStrength: "36",
   variance: "90",
   varianceMode: "uniform",
-  glow: "8",
-  glyphGlow: "110",
-  glyphBlur: "4",
   textColor: "#00ff66",
   headColor: "#ddffdd",
   backgroundColor: "#000000",
@@ -162,9 +158,9 @@ function settings() {
     depthStrength: Number(controls.depthStrength.value) / 100,
     variance: Number(controls.variance.value) / 100,
     varianceMode: controls.varianceMode.value,
-    glow: Number(controls.glow.value),
-    glyphGlow: Number(controls.glyphGlow.value) / 100,
-    glyphBlur: Number(controls.glyphBlur.value),
+    glow: fixedGlowSettings.glow,
+    glyphGlow: fixedGlowSettings.glyphGlow,
+    glyphBlur: fixedGlowSettings.glyphBlur,
     textColor: controls.textColor.value,
     headColor: controls.headColor.value,
     backgroundColor: controls.backgroundColor.value,
@@ -688,9 +684,6 @@ function randomize() {
   controls.depthStrength.value = String(12 + Math.floor(Math.random() * 36));
   controls.variance.value = String(20 + Math.floor(Math.random() * 70));
   controls.varianceMode.value = ["uniform", "center", "extreme", "slow", "fast"][Math.floor(Math.random() * 5)];
-  controls.glow.value = String(2 + Math.floor(Math.random() * 10));
-  controls.glyphGlow.value = String(85 + Math.floor(Math.random() * 105));
-  controls.glyphBlur.value = String(Math.floor(Math.random() * 10));
   normalizeSpeedBounds();
   updateControlValues();
   resetRain();
@@ -1111,9 +1104,6 @@ function writeSubBlocks(bytes, data) {
 [
   controls.textColor,
   controls.headColor,
-  controls.glow,
-  controls.glyphGlow,
-  controls.glyphBlur,
 ].forEach((control) => control.addEventListener("input", refreshSettings));
 controls.characterPreset.addEventListener("change", applyCharacterPreset);
 controls.addPresetBtn.addEventListener("click", addCustomPreset);
