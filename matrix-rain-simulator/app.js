@@ -167,6 +167,14 @@ function settings() {
   };
 }
 
+function effectiveGlowRadius(glow) {
+  return Math.min(24, (Math.log1p(Math.max(0, glow) * 1.6) / Math.log1p(112)) * 24);
+}
+
+function effectiveBlurRadius(blur) {
+  return Math.min(18, (Math.log1p(Math.max(0, blur)) / Math.log1p(60)) * 18);
+}
+
 function currentSettings() {
   if (!cachedSettings) cachedSettings = settings();
   return cachedSettings;
@@ -174,6 +182,30 @@ function currentSettings() {
 
 function refreshSettings() {
   cachedSettings = settings();
+}
+
+function formatControlValue(control) {
+  if (control.type === "color") return control.value.toUpperCase();
+  if (control.tagName === "SELECT") {
+    return control.selectedOptions[0]?.textContent?.trim() || control.value;
+  }
+  return control.value;
+}
+
+function updateControlValues() {
+  document.querySelectorAll(".field input, .field select").forEach((control) => {
+    if (control.type === "file" || control.type === "text") return;
+    const label = control.closest(".field");
+    const title = label?.querySelector(":scope > span");
+    if (!title) return;
+    let value = title.querySelector(".field-value");
+    if (!value) {
+      value = document.createElement("span");
+      value.className = "field-value";
+      title.appendChild(value);
+    }
+    value.textContent = formatControlValue(control);
+  });
 }
 
 function buildCharacterPatterns() {
@@ -412,13 +444,14 @@ function prepareText(layer, s) {
 
 function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity, blur) {
   const glowPower = Math.max(0, intensity);
+  const baseGlow = effectiveGlowRadius(glow);
   const effectiveGlow = Math.log1p(glowPower * 1.8) / Math.log1p(28);
-  const innerGlow = Math.min(18, glow * (0.42 + effectiveGlow * 0.62));
-  const outerGlow = Math.min(44, glow * (0.74 + effectiveGlow * 2.15));
-  const haloGlow = Math.min(86, glow * (1.12 + effectiveGlow * 3.4));
+  const innerGlow = Math.min(16, baseGlow * (0.42 + effectiveGlow * 0.62));
+  const outerGlow = Math.min(36, baseGlow * (0.74 + effectiveGlow * 2.15));
+  const haloGlow = Math.min(62, baseGlow * (1.12 + effectiveGlow * 3.4));
   const alphaBoost = Math.min(2.6, 0.35 + effectiveGlow * 2.25);
   const glowAlpha = Math.max(0, intensity);
-  const blurAmount = Math.max(0, blur);
+  const blurAmount = effectiveBlurRadius(blur);
   const clampAlpha = (value) => Math.max(0, Math.min(1, value));
 
   if (glow > 0 && glowAlpha > 0) {
@@ -459,7 +492,7 @@ function drawHeadFlash(flash, s, layer) {
   const size = layer.fontSize * (0.78 + age * 0.28);
   const flashColor = colorToCss(mix(s.headRgb, [255, 255, 255], 0.72));
   ctx.globalAlpha = age ** 1.8 * layer.alpha * (0.18 + layer.frontRatio * 0.38);
-  ctx.shadowBlur = s.glow * (2.4 + layer.frontRatio * 2.4);
+  ctx.shadowBlur = effectiveGlowRadius(s.glow) * (1.1 + layer.frontRatio * 1.35);
   ctx.shadowColor = flashColor;
   ctx.fillStyle = flashColor;
   ctx.fillRect(flash.x - size / 2, flash.y - size / 2, size, size);
@@ -635,6 +668,7 @@ function randomize() {
   controls.glyphGlow.value = String(85 + Math.floor(Math.random() * 105));
   controls.glyphBlur.value = String(Math.floor(Math.random() * 10));
   normalizeSpeedBounds();
+  updateControlValues();
   resetRain();
 }
 
@@ -674,6 +708,7 @@ function applyConfig(config) {
   });
   normalizeSpeedBounds();
   renderPresetOptions(config.characterPreset || "");
+  updateControlValues();
   resetRain();
 }
 
@@ -725,6 +760,7 @@ function applyCharacterPreset() {
   const preset = allPresets()[controls.characterPreset.value];
   if (!preset) return;
   controls.characters.value = preset;
+  updateControlValues();
   resetRain();
 }
 
@@ -1042,6 +1078,8 @@ controls.loadJsonInput.addEventListener("change", () => {
   controls.loadJsonInput.value = "";
 });
 controls.controlPanel.addEventListener("click", (event) => event.stopPropagation());
+controls.controlPanel.addEventListener("input", updateControlValues);
+controls.controlPanel.addEventListener("change", updateControlValues);
 document.body.addEventListener("click", togglePanel);
 document.addEventListener("fullscreenchange", syncFullscreenButton);
 window.addEventListener("resize", resize);
@@ -1049,6 +1087,7 @@ window.addEventListener("resize", resize);
 renderPresetOptions("matrix");
 controls.characterPreset.value = "matrix";
 normalizeSpeedBounds();
+updateControlValues();
 resize();
 if (document.fonts && document.fonts.load) {
   document.fonts.load('400 24px "Noto Sans Siddham"').then(resetRain).catch(() => {});
