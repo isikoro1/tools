@@ -84,17 +84,17 @@ const defaultConfig = {
   characters: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
   characterPreset: "default",
   fontSize: "18",
-  fontWeight: "500",
+  fontWeight: "700",
   speedMin: "7",
-  speedMax: "18",
+  speedMax: "30",
   density: "54",
-  frequency: "100",
-  displayLimit: "42",
-  trail: "34",
+  frequency: "30",
+  displayLimit: "30",
+  trail: "25",
   direction: "down",
   characterOrder: "random",
   rowSpacing: "35",
-  depth: "2",
+  depth: "5",
   depthStrength: "36",
   variance: "90",
   varianceMode: "uniform",
@@ -1186,6 +1186,6 @@ normalizeSpeedBounds();
 updateControlValues();
 resize();
 if (document.fonts && document.fonts.load) {
-  document.fonts.load('400 24px "Noto Sans Siddham"').then(resetRain).catch(() => {});
+  document.fonts.load('400 24px "Noto Sans Siddham"').then(resetRain).catch(() => { });
 }
 requestAnimationFrame(frame);
