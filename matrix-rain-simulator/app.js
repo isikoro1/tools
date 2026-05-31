@@ -133,6 +133,7 @@ let layers = [];
 let lastFrame = performance.now();
 let accumulator = 0;
 let isExportingGif = false;
+let cachedSettings = null;
 
 function settings() {
   const speedMin = Number(controls.speedMin.value);
@@ -164,6 +165,15 @@ function settings() {
     backgroundRgb: hexToRgb(controls.backgroundColor.value),
     characterPatterns: buildCharacterPatterns(),
   };
+}
+
+function currentSettings() {
+  if (!cachedSettings) cachedSettings = settings();
+  return cachedSettings;
+}
+
+function refreshSettings() {
+  cachedSettings = settings();
 }
 
 function buildCharacterPatterns() {
@@ -341,7 +351,7 @@ function countActiveColumns() {
   );
 }
 
-function makeColumn(index, s, layer, spreadStart = false, activeCount = countActiveColumns()) {
+function makeColumn(index, s, layer, spreadStart, activeCount) {
   const varianceMin = Math.max(0.02, 1 - s.variance * 0.95);
   const varianceMax = 1 + s.variance * 2.8;
   const rowCount = Math.ceil(flowExtent(s) / layer.rowStep) + 4;
@@ -381,7 +391,8 @@ function resize() {
 }
 
 function resetRain() {
-  const s = settings();
+  refreshSettings();
+  const s = cachedSettings;
   layers = Array.from({ length: s.depth }, (_, index) => makeLayer(index, s));
   paintBackground(s);
 }
@@ -558,7 +569,7 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
 }
 
 function tickRain(elapsedSeconds = 1 / 30) {
-  const s = settings();
+  const s = currentSettings();
   paintBackground(s);
   layers.forEach((layer) => {
     layer.columns.forEach((column, index) => {
@@ -998,6 +1009,13 @@ function writeSubBlocks(bytes, data) {
   controls.characters,
   controls.backgroundColor,
 ].forEach((control) => control.addEventListener("input", resetRain));
+[
+  controls.textColor,
+  controls.headColor,
+  controls.glow,
+  controls.glyphGlow,
+  controls.glyphBlur,
+].forEach((control) => control.addEventListener("input", refreshSettings));
 controls.characterPreset.addEventListener("change", applyCharacterPreset);
 controls.addPresetBtn.addEventListener("click", addCustomPreset);
 controls.updatePresetBtn.addEventListener("click", updateCustomPreset);
