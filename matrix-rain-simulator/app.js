@@ -542,10 +542,10 @@ function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity, blur) {
 // 先頭文字がタイプされた瞬間の四角い光を描画する。
 function drawHeadFlash(flash, s, layer) {
   const age = Math.max(0, flash.life / flash.maxLife);
-  const size = layer.fontSize * (0.78 + age * 0.28);
-  const flashColor = colorToCss(mix(s.headRgb, [255, 255, 255], 0.72));
-  ctx.globalAlpha = age ** 1.8 * layer.alpha * (0.18 + layer.frontRatio * 0.38);
-  ctx.shadowBlur = effectiveGlowRadius(s.glow) * (1.1 + layer.frontRatio * 1.35);
+  const size = layer.fontSize * (0.88 + age * 0.34);
+  const flashColor = colorToCss(mix(s.headRgb, [255, 255, 255], 0.86));
+  ctx.globalAlpha = Math.min(1, age ** 1.45 * layer.alpha * (0.36 + layer.frontRatio * 0.62));
+  ctx.shadowBlur = effectiveGlowRadius(s.glow) * (1.8 + layer.frontRatio * 2.2);
   ctx.shadowColor = flashColor;
   ctx.fillStyle = flashColor;
   ctx.fillRect(flash.x - size / 2, flash.y - size / 2, size, size);
@@ -646,8 +646,8 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
       column.flashes.unshift({
         x: point.x,
         y: point.y,
-        life: 0.14,
-        maxLife: 0.14,
+        life: 0.18,
+        maxLife: 0.18,
       });
     }
     column.timer -= interval;
