@@ -1,6 +1,7 @@
 const canvas = document.querySelector("#rainCanvas");
 const ctx = canvas.getContext("2d");
 
+// DOM handles for every control used by the renderer and exporters.
 const controls = {
   characters: document.querySelector("#characters"),
   characterPreset: document.querySelector("#characterPreset"),
@@ -46,6 +47,7 @@ const controls = {
   controlPanel: document.querySelector("#controlPanel"),
 };
 
+// Settings included in JSON import/export.
 const settingKeys = [
   "characters",
   "characterPreset",
@@ -77,6 +79,8 @@ const settingKeys = [
 ];
 
 const latin = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+// Initial values used by the D button and JSON reset flow.
 const defaultConfig = {
   characters: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
   characterPreset: "default",
@@ -106,6 +110,8 @@ const defaultConfig = {
   gifSeconds: "2",
   videoSeconds: "15",
 };
+
+// Built-in character sets. Newlines split a preset into separate rain patterns.
 const builtInPresets = {
   default: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
   matrix: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*+-=<>[]{}?/\\|:;!\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
@@ -126,6 +132,7 @@ const builtInPresets = {
 };
 let customPresets = loadCustomPresets();
 
+// Canvas and animation state shared by the frame loop.
 let width = 0;
 let height = 0;
 let dpr = 1;
@@ -135,6 +142,7 @@ let accumulator = 0;
 let isExportingGif = false;
 let cachedSettings = null;
 
+// Read the UI once and normalize values for the renderer.
 function settings() {
   const speedMin = Number(controls.speedMin.value);
   const speedMax = Math.max(speedMin, Number(controls.speedMax.value));
@@ -167,6 +175,7 @@ function settings() {
   };
 }
 
+// Compress high-cost glow and blur settings so large slider values stay usable.
 function effectiveGlowRadius(glow) {
   return Math.min(24, (Math.log1p(Math.max(0, glow) * 1.6) / Math.log1p(112)) * 24);
 }
@@ -175,6 +184,7 @@ function effectiveBlurRadius(blur) {
   return Math.min(18, (Math.log1p(Math.max(0, blur)) / Math.log1p(60)) * 18);
 }
 
+// Reuse settings during animation frames to avoid repeated DOM reads.
 function currentSettings() {
   if (!cachedSettings) cachedSettings = settings();
   return cachedSettings;
@@ -184,6 +194,7 @@ function refreshSettings() {
   cachedSettings = settings();
 }
 
+// Update small value badges next to controls.
 function formatControlValue(control) {
   if (control.type === "color") return control.value.toUpperCase();
   if (control.tagName === "SELECT") {
@@ -208,6 +219,7 @@ function updateControlValues() {
   });
 }
 
+// Build one or more character patterns from the textarea.
 function buildCharacterPatterns() {
   const custom = controls.characters.value.trim();
   const base = custom.length ? custom : latin;
@@ -219,6 +231,7 @@ function buildCharacterPatterns() {
     .filter(Boolean);
 }
 
+// Custom presets are local to the browser via localStorage.
 function allPresets() {
   return { ...builtInPresets, ...customPresets };
 }
@@ -264,6 +277,7 @@ function renderPresetOptions(selected = controls.characterPreset.value) {
   controls.characterPreset.value = selected in allPresets() ? selected : "";
 }
 
+// Keep ASCII narrow glyphs aligned with full-width Japanese glyphs.
 function toFullWidth(char) {
   const code = char.charCodeAt(0);
   if (code === 0x20) return "\u3000";
@@ -273,6 +287,7 @@ function toFullWidth(char) {
   );
 }
 
+// Character selection helpers used by random/sequence/reverse modes.
 function randomChar(chars) {
   return chars[Math.floor(Math.random() * chars.length)] || "\uff10";
 }
@@ -299,6 +314,7 @@ function nextCharacter(column, s) {
   return characterAt(column.pattern, column.charIndex);
 }
 
+// Convert abstract lane/flow coordinates into screen coordinates.
 function isHorizontal(s) {
   return s.direction === "left" || s.direction === "right";
 }
@@ -328,6 +344,7 @@ function distributionSample(mode) {
   return a;
 }
 
+// Depth layers decide size, alpha, speed scale, and lane count.
 function makeLayer(layerIndex, s) {
   const denominator = Math.max(1, s.depth - 1);
   const depthRatio = s.depth === 1 ? 1 : layerIndex / denominator;
@@ -360,6 +377,7 @@ function makeLayer(layerIndex, s) {
   return layer;
 }
 
+// Spawn gating controls density and prevents slow columns from dominating.
 function speedRatioForColumn(cps, s, layer) {
   const varianceMin = Math.max(0.02, 1 - s.variance * 0.95);
   const varianceMax = 1 + s.variance * 2.8;
@@ -383,6 +401,7 @@ function countActiveColumns() {
   );
 }
 
+// A column is one typed stream plus its static residues and flash effects.
 function makeColumn(index, s, layer, spreadStart, activeCount) {
   const varianceMin = Math.max(0.02, 1 - s.variance * 0.95);
   const varianceMax = 1 + s.variance * 2.8;
@@ -410,6 +429,7 @@ function makeColumn(index, s, layer, spreadStart, activeCount) {
   };
 }
 
+// Rebuild all generated rain after structural settings or viewport changes.
 function resize() {
   dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
   width = window.innerWidth;
@@ -429,6 +449,7 @@ function resetRain() {
   paintBackground(s);
 }
 
+// Canvas drawing helpers for background, glyphs, flash, residue, and head.
 function paintBackground(s) {
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
@@ -524,6 +545,7 @@ function drawColumn(column, s, layer) {
   ctx.globalAlpha = 1;
 }
 
+// Advance residue fade, glyph flicker, and head typing for each column.
 function animateColumnEffects(column, elapsedSeconds, s) {
   column.flashes = column.flashes
     .map((flash) => ({ ...flash, life: flash.life - elapsedSeconds }))
@@ -601,6 +623,7 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
   }
 }
 
+// Main simulation tick. Drawing uses cached settings for frame-time stability.
 function tickRain(elapsedSeconds = 1 / 30) {
   const s = currentSettings();
   paintBackground(s);
@@ -635,6 +658,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+// UI commands and settings import/export.
 function randomize() {
   const palettes = [
     ["#00ff66", "#ddffdd", "#000000"],
@@ -682,6 +706,7 @@ function normalizeSpeedBounds() {
   }
 }
 
+// File download and media export helpers.
 function downloadBlob(blob, fileName) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -906,6 +931,7 @@ async function exportGif() {
   }
 }
 
+// GIF encoder helpers. The LZW path favors small code over maximum compression.
 function encodeGif(frames, delay) {
   const width = frames[0].width;
   const height = frames[0].height;
@@ -1028,6 +1054,7 @@ function writeSubBlocks(bytes, data) {
   bytes.push(0);
 }
 
+// Wire controls after all functions are defined.
 [
   controls.fontSize,
   controls.density,
