@@ -531,16 +531,21 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
         life: maxLife,
         maxLife,
       });
-      column.flashes.unshift({
-        x: point.x,
-        y: point.y,
-        life: 0.18,
-        maxLife: 0.18,
-      });
     }
 
     column.row += 1;
     column.headChar = nextCharacter(column, s);
+    const currentHeadFlow = column.row * layer.rowStep + layer.rowStep / 2;
+    const canCreateFlash = currentHeadFlow >= -layer.fontSize && currentHeadFlow <= flowExtent(s) + layer.fontSize;
+    if (canCreateFlash) {
+      const point = flowPoint(column.x, currentHeadFlow, s);
+      column.flashes.unshift({
+        x: point.x,
+        y: point.y,
+        life: 0.14,
+        maxLife: 0.14,
+      });
+    }
     column.timer -= interval;
     typed += 1;
 
