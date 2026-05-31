@@ -1,4 +1,7 @@
+// 文字雨を描画するメインCanvas要素。
 const canvas = document.querySelector("#rainCanvas");
+
+// 2D Canvas APIの描画コンテキスト。
 const ctx = canvas.getContext("2d");
 
 // 描画処理と出力処理で使うUI要素をまとめて参照する。
@@ -73,6 +76,8 @@ const settingKeys = [
 ];
 
 const latin = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+// 手動設定を持たない固定の発光・ぼかし設定。
 const fixedGlowSettings = {
   glow: 14,
   glyphGlow: 1.7,
@@ -232,6 +237,7 @@ function allPresets() {
   return { ...builtInPresets, ...customPresets };
 }
 
+// localStorageからカスタムプリセットを読み込む。
 function loadCustomPresets() {
   try {
     return JSON.parse(localStorage.getItem("matrixRainCustomPresets") || "{}");
@@ -240,10 +246,12 @@ function loadCustomPresets() {
   }
 }
 
+// カスタムプリセットをlocalStorageへ保存する。
 function saveCustomPresets() {
   localStorage.setItem("matrixRainCustomPresets", JSON.stringify(customPresets));
 }
 
+// 標準プリセットとカスタムプリセットをselectへ反映する。
 function renderPresetOptions(selected = controls.characterPreset.value) {
   const labels = {
     default: "\u30c7\u30d5\u30a9\u30eb\u30c8",
@@ -292,11 +300,13 @@ function randomBetween(min, max) {
   return min + Math.random() * (max - min);
 }
 
+// 指定位置の文字を取得し、範囲外なら循環させる。
 function characterAt(chars, index) {
   const glyphs = Array.from(chars);
   return glyphs[((index % glyphs.length) + glyphs.length) % glyphs.length] || "\uff10";
 }
 
+// 列の文字順設定に応じて、次の先頭文字を決める。
 function nextCharacter(column, s) {
   if (s.characterOrder === "sequence") {
     column.charIndex += 1;
@@ -315,14 +325,17 @@ function isHorizontal(s) {
   return s.direction === "left" || s.direction === "right";
 }
 
+// 文字が流れる方向の画面サイズを返す。
 function flowExtent(s) {
   return isHorizontal(s) ? width : height;
 }
 
+// 文字列の列を並べる方向の画面サイズを返す。
 function laneExtent(s) {
   return isHorizontal(s) ? height : width;
 }
 
+// 方向設定に応じて、レーン座標と流れ座標を実画面座標へ変換する。
 function flowPoint(lanePosition, flowPosition, s) {
   if (s.direction === "up") return { x: lanePosition, y: height - flowPosition };
   if (s.direction === "right") return { x: flowPosition, y: lanePosition };
@@ -330,6 +343,7 @@ function flowPoint(lanePosition, flowPosition, s) {
   return { x: lanePosition, y: flowPosition };
 }
 
+// 速度ばらつきの分布設定に応じた乱数サンプルを返す。
 function distributionSample(mode) {
   const a = Math.random();
   const b = Math.random();
@@ -382,6 +396,7 @@ function speedRatioForColumn(cps, s, layer) {
   return Math.min(1, Math.max(0, (cps - minCps) / (maxCps - minCps || 1)));
 }
 
+// 現在の列を新規生成せず待機列にするか判定する。
 function shouldSkipColumn(cps, s, layer, activeCount) {
   if (activeCount >= s.displayLimit) return true;
   const speedRatio = speedRatioForColumn(cps, s, layer);
@@ -390,6 +405,7 @@ function shouldSkipColumn(cps, s, layer, activeCount) {
   return Math.random() > densityChance * slowGate;
 }
 
+// 現在表示中の有効な文字列の数を数える。
 function countActiveColumns() {
   return layers.reduce(
     (total, layer) => total + layer.columns.filter((column) => !column.skip).length,
@@ -459,6 +475,7 @@ function prepareText(layer, s) {
   ctx.textBaseline = "middle";
 }
 
+// 文字本体、内側の光、外側の光、軽いぼかしをまとめて描画する。
 function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity, blur) {
   const glowPower = Math.max(0, intensity);
   const baseGlow = effectiveGlowRadius(glow);
@@ -504,6 +521,7 @@ function drawGlowingGlyph(char, x, y, color, alpha, glow, intensity, blur) {
   ctx.fillText(char, x, y);
 }
 
+// 先頭文字がタイプされた瞬間の四角い光を描画する。
 function drawHeadFlash(flash, s, layer) {
   const age = Math.max(0, flash.life / flash.maxLife);
   const size = layer.fontSize * (0.78 + age * 0.28);
@@ -515,6 +533,7 @@ function drawHeadFlash(flash, s, layer) {
   ctx.fillRect(flash.x - size / 2, flash.y - size / 2, size, size);
 }
 
+// 先頭から残った固定位置の残像文字を描画する。
 function drawResidue(residue, s, layer) {
   const age = Math.max(0, residue.life / residue.maxLife);
   const alpha = Math.max(0.03, age ** 1.45) * layer.alpha;
@@ -522,6 +541,7 @@ function drawResidue(residue, s, layer) {
   drawGlowingGlyph(residue.char, residue.x, residue.y, color, alpha, s.glow * (0.58 + layer.frontRatio * 0.36), s.glyphGlow * 1.18, s.glyphBlur);
 }
 
+// 現在の先頭文字を描画する。
 function drawHead(column, s, layer) {
   if (column.startDelay > 0) return;
   const headFlow = column.row * layer.rowStep + layer.rowStep / 2;
@@ -533,6 +553,7 @@ function drawHead(column, s, layer) {
   drawGlowingGlyph(column.headChar, point.x, point.y, color, layer.alpha, s.glow * (1.35 + layer.frontRatio * 0.95), s.glyphGlow * 1.25, s.glyphBlur);
 }
 
+// 1列ぶんのフラッシュ、残像、先頭文字をまとめて描画する。
 function drawColumn(column, s, layer) {
   prepareText(layer, s);
   column.flashes.forEach((flash) => drawHeadFlash(flash, s, layer));
@@ -562,6 +583,7 @@ function replaceColumn(index, s, layer, residues = []) {
   layer.columns[index] = nextColumn;
 }
 
+// 生成待ちの列を進め、待機時間が終わったら新しい列に差し替える。
 function stepSkippedColumn(column, s, layer, index, elapsedSeconds) {
   column.startDelay -= elapsedSeconds * column.cps;
   if (column.startDelay <= 0) {
@@ -569,6 +591,7 @@ function stepSkippedColumn(column, s, layer, index, elapsedSeconds) {
   }
 }
 
+// 1列ぶんのタイプ進行、残像生成、フラッシュ生成、列差し替えを行う。
 function stepColumn(column, s, layer, index, elapsedSeconds) {
   if (column.startDelay > 0) {
     column.startDelay -= elapsedSeconds * column.cps;
@@ -693,6 +716,7 @@ function togglePanel() {
   document.body.classList.toggle("config-hidden");
 }
 
+// 最小速度が最大速度を超えないようにUI値を補正する。
 function normalizeSpeedBounds() {
   if (Number(controls.speedMin.value) > Number(controls.speedMax.value)) {
     controls.speedMax.value = controls.speedMin.value;
@@ -717,12 +741,14 @@ function collectConfig() {
   );
 }
 
+// 数値を指定範囲へ収め、不正値ならフォールバックする。
 function clampNumber(value, min, max, fallback) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
   return Math.min(max, Math.max(min, number));
 }
 
+// JSONから来た値を安全にbooleanへ変換する。
 function normalizeBoolean(value, fallback = false) {
   if (typeof value === "boolean") return value;
   if (value === "true") return true;
@@ -730,6 +756,7 @@ function normalizeBoolean(value, fallback = false) {
   return fallback;
 }
 
+// JSON設定の各値をUI controlの種類に合わせて正規化する。
 function normalizeConfigValue(key, value) {
   const control = controls[key];
   const fallback = defaultConfig[key];
@@ -750,6 +777,7 @@ function normalizeConfigValue(key, value) {
   return typeof value === "string" ? value : String(fallback);
 }
 
+// 正規化した設定値をUIへ反映し、雨を再生成する。
 function applyConfig(config) {
   settingKeys.forEach((key) => {
     if (!controls[key]) return;
@@ -766,11 +794,13 @@ function applyConfig(config) {
   resetRain();
 }
 
+// Dボタン用に初期設定を読み込む。
 function resetDefaults() {
   applyConfig(defaultConfig);
   controls.exportStatus.textContent = "Defaults loaded";
 }
 
+// ブラウザのFullscreen APIで全画面表示を切り替える。
 async function toggleFullscreen() {
   try {
     if (document.fullscreenElement) {
@@ -785,17 +815,20 @@ async function toggleFullscreen() {
   }
 }
 
+// 全画面状態に合わせてボタン表示を更新する。
 function syncFullscreenButton() {
   controls.fullscreenBtn.textContent = document.fullscreenElement ? "W" : "F";
   controls.fullscreenBtn.title = document.fullscreenElement ? "\u30a6\u30a3\u30f3\u30c9\u30a6" : "\u5168\u753b\u9762";
   resize();
 }
 
+// 現在の設定をJSONファイルとして保存する。
 function saveJson() {
   const blob = new Blob([JSON.stringify(collectConfig(), null, 2)], { type: "application/json" });
   downloadBlob(blob, "matrix-rain-settings.json");
 }
 
+// JSONファイルを読み込み、設定として反映する。
 function loadJson(file) {
   if (!file) return;
   const reader = new FileReader();
@@ -810,6 +843,7 @@ function loadJson(file) {
   reader.readAsText(file);
 }
 
+// 選択された文字プリセットをテキストエリアへ反映する。
 function applyCharacterPreset() {
   const preset = allPresets()[controls.characterPreset.value];
   if (!preset) return;
@@ -818,12 +852,14 @@ function applyCharacterPreset() {
   resetRain();
 }
 
+// カスタムプリセット名から保存用キーを作る。
 function customPresetKey() {
   const name = controls.customPresetName.value.trim();
   if (!name) return "";
   return `custom:${name}`;
 }
 
+// 現在の文字入力を新しいカスタムプリセットとして保存する。
 function addCustomPreset() {
   const key = customPresetKey();
   if (!key) {
@@ -837,6 +873,7 @@ function addCustomPreset() {
   controls.exportStatus.textContent = "Preset added";
 }
 
+// 選択中または入力名に対応するカスタムプリセットを更新する。
 function updateCustomPreset() {
   const key = controls.characterPreset.value.startsWith("custom:") ? controls.characterPreset.value : customPresetKey();
   if (!key || !customPresets[key]) {
@@ -849,6 +886,7 @@ function updateCustomPreset() {
   controls.exportStatus.textContent = "Preset updated";
 }
 
+// 選択中のカスタムプリセットを削除する。
 function deleteCustomPreset() {
   const key = controls.characterPreset.value;
   if (!key.startsWith("custom:") || !customPresets[key]) {
@@ -862,12 +900,14 @@ function deleteCustomPreset() {
   controls.exportStatus.textContent = "Preset deleted";
 }
 
+// 現在のCanvas表示をPNGとして保存する。
 function exportPng() {
   canvas.toBlob((blob) => {
     if (blob) downloadBlob(blob, "matrix-rain.png");
   }, "image/png");
 }
 
+// ブラウザが対応している動画MIME typeを選ぶ。
 function preferredVideoMimeType() {
   if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return "";
   return [
@@ -879,6 +919,7 @@ function preferredVideoMimeType() {
   ].find((type) => MediaRecorder.isTypeSupported(type)) || "";
 }
 
+// Canvasのライブ表示をMP4またはWebMとして録画保存する。
 async function exportVideo() {
   if (!canvas.captureStream || !window.MediaRecorder) {
     controls.exportStatus.textContent = "Video unsupported";
@@ -922,6 +963,7 @@ async function exportVideo() {
   }
 }
 
+// Canvasを一定間隔で進め、GIFフレームとして保存する。
 async function exportGif() {
   if (isExportingGif) return;
   isExportingGif = true;
@@ -1009,19 +1051,23 @@ function makePalette() {
   return palette.slice(0, 16);
 }
 
+// #RRGGBBをRGB配列へ変換する。
 function hexToRgb(hex) {
   const value = Number.parseInt(hex.slice(1), 16);
   return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
 }
 
+// 2つのRGB色を指定割合で混ぜる。
 function mix(a, b, amount) {
   return a.map((value, index) => Math.round(value + (b[index] - value) * amount));
 }
 
+// RGB配列をCSSのrgb()文字列に変換する。
 function colorToCss(rgb) {
   return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
 }
 
+// RGBAピクセル列をGIF用パレット番号へ変換する。
 function indexPixels(data, palette) {
   const indexed = new Uint8Array(data.length / 4);
   for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
@@ -1043,6 +1089,7 @@ function indexPixels(data, palette) {
   return indexed;
 }
 
+// GIF用の簡易LZWデータを生成する。
 function lzwEncode(indices, minCodeSize) {
   const clearCode = 1 << minCodeSize;
   const endCode = clearCode + 1;
@@ -1075,6 +1122,7 @@ function lzwEncode(indices, minCodeSize) {
   return output;
 }
 
+// GIFの可変長データをサブブロック形式で書き込む。
 function writeSubBlocks(bytes, data) {
   for (let i = 0; i < data.length; i += 255) {
     const block = data.slice(i, i + 255);
@@ -1137,10 +1185,7 @@ document.body.addEventListener("click", togglePanel);
 document.addEventListener("fullscreenchange", syncFullscreenButton);
 window.addEventListener("resize", resize);
 
-renderPresetOptions("matrix");
-controls.characterPreset.value = "matrix";
-normalizeSpeedBounds();
-updateControlValues();
+applyConfig(defaultConfig);
 resize();
 if (document.fonts && document.fonts.load) {
   document.fonts.load('400 24px "Noto Sans Siddham"').then(resetRain).catch(() => { });
