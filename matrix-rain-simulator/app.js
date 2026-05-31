@@ -1,7 +1,7 @@
 const canvas = document.querySelector("#rainCanvas");
 const ctx = canvas.getContext("2d");
 
-// DOM handles for every control used by the renderer and exporters.
+// 描画処理と出力処理で使うUI要素をまとめて参照する。
 const controls = {
   characters: document.querySelector("#characters"),
   characterPreset: document.querySelector("#characterPreset"),
@@ -47,7 +47,7 @@ const controls = {
   controlPanel: document.querySelector("#controlPanel"),
 };
 
-// Settings included in JSON import/export.
+// JSON保存・読み込みの対象にする設定項目。
 const settingKeys = [
   "characters",
   "characterPreset",
@@ -80,7 +80,7 @@ const settingKeys = [
 
 const latin = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
-// Initial values used by the D button and JSON reset flow.
+// Dボタンや設定リセットで使う初期値。
 const defaultConfig = {
   characters: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
   characterPreset: "default",
@@ -111,7 +111,7 @@ const defaultConfig = {
   videoSeconds: "15",
 };
 
-// Built-in character sets. Newlines split a preset into separate rain patterns.
+// 標準プリセット。改行は複数の文字列パターンとして扱う。
 const builtInPresets = {
   default: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
   matrix: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*+-=<>[]{}?/\\|:;!\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
@@ -132,7 +132,7 @@ const builtInPresets = {
 };
 let customPresets = loadCustomPresets();
 
-// Canvas and animation state shared by the frame loop.
+// フレームループ全体で共有するCanvasとアニメーションの状態。
 let width = 0;
 let height = 0;
 let dpr = 1;
@@ -142,7 +142,7 @@ let accumulator = 0;
 let isExportingGif = false;
 let cachedSettings = null;
 
-// Read the UI once and normalize values for the renderer.
+// UIの値を読み取り、描画処理で使いやすい形に正規化する。
 function settings() {
   const speedMin = Number(controls.speedMin.value);
   const speedMax = Math.max(speedMin, Number(controls.speedMax.value));
@@ -175,7 +175,7 @@ function settings() {
   };
 }
 
-// Compress high-cost glow and blur settings so large slider values stay usable.
+// 高い光彩・ぼかし設定でも重くなりすぎないよう描画半径を圧縮する。
 function effectiveGlowRadius(glow) {
   return Math.min(24, (Math.log1p(Math.max(0, glow) * 1.6) / Math.log1p(112)) * 24);
 }
@@ -184,7 +184,7 @@ function effectiveBlurRadius(blur) {
   return Math.min(18, (Math.log1p(Math.max(0, blur)) / Math.log1p(60)) * 18);
 }
 
-// Reuse settings during animation frames to avoid repeated DOM reads.
+// 毎フレームDOMを読み直さないよう、設定値をキャッシュして使う。
 function currentSettings() {
   if (!cachedSettings) cachedSettings = settings();
   return cachedSettings;
@@ -194,7 +194,7 @@ function refreshSettings() {
   cachedSettings = settings();
 }
 
-// Update small value badges next to controls.
+// 各コントロールの横に現在値の小さなバッジを表示する。
 function formatControlValue(control) {
   if (control.type === "color") return control.value.toUpperCase();
   if (control.tagName === "SELECT") {
@@ -219,7 +219,7 @@ function updateControlValues() {
   });
 }
 
-// Build one or more character patterns from the textarea.
+// テキストエリアの内容から、雨に使う文字列パターンを作る。
 function buildCharacterPatterns() {
   const custom = controls.characters.value.trim();
   const base = custom.length ? custom : latin;
@@ -231,7 +231,7 @@ function buildCharacterPatterns() {
     .filter(Boolean);
 }
 
-// Custom presets are local to the browser via localStorage.
+// カスタムプリセットはブラウザ内のlocalStorageに保存する。
 function allPresets() {
   return { ...builtInPresets, ...customPresets };
 }
@@ -277,7 +277,7 @@ function renderPresetOptions(selected = controls.characterPreset.value) {
   controls.characterPreset.value = selected in allPresets() ? selected : "";
 }
 
-// Keep ASCII narrow glyphs aligned with full-width Japanese glyphs.
+// 半角英数字を全角化し、日本語文字と横位置が揃うようにする。
 function toFullWidth(char) {
   const code = char.charCodeAt(0);
   if (code === 0x20) return "\u3000";
@@ -287,7 +287,7 @@ function toFullWidth(char) {
   );
 }
 
-// Character selection helpers used by random/sequence/reverse modes.
+// ランダム・順列・逆列モードで使う文字選択処理。
 function randomChar(chars) {
   return chars[Math.floor(Math.random() * chars.length)] || "\uff10";
 }
@@ -314,7 +314,7 @@ function nextCharacter(column, s) {
   return characterAt(column.pattern, column.charIndex);
 }
 
-// Convert abstract lane/flow coordinates into screen coordinates.
+// レーン位置と流れる方向の座標を、画面上の座標へ変換する。
 function isHorizontal(s) {
   return s.direction === "left" || s.direction === "right";
 }
@@ -344,7 +344,7 @@ function distributionSample(mode) {
   return a;
 }
 
-// Depth layers decide size, alpha, speed scale, and lane count.
+// 奥行きレイヤーごとに文字サイズ・透明度・速度・列数を決める。
 function makeLayer(layerIndex, s) {
   const denominator = Math.max(1, s.depth - 1);
   const depthRatio = s.depth === 1 ? 1 : layerIndex / denominator;
@@ -377,7 +377,7 @@ function makeLayer(layerIndex, s) {
   return layer;
 }
 
-// Spawn gating controls density and prevents slow columns from dominating.
+// 文字列の生成密度を制御し、遅い列が増えすぎないようにする。
 function speedRatioForColumn(cps, s, layer) {
   const varianceMin = Math.max(0.02, 1 - s.variance * 0.95);
   const varianceMax = 1 + s.variance * 2.8;
@@ -401,7 +401,7 @@ function countActiveColumns() {
   );
 }
 
-// A column is one typed stream plus its static residues and flash effects.
+// 1つの列は、タイプされる先頭文字・固定残像・発光エフェクトを持つ。
 function makeColumn(index, s, layer, spreadStart, activeCount) {
   const varianceMin = Math.max(0.02, 1 - s.variance * 0.95);
   const varianceMax = 1 + s.variance * 2.8;
@@ -429,7 +429,7 @@ function makeColumn(index, s, layer, spreadStart, activeCount) {
   };
 }
 
-// Rebuild all generated rain after structural settings or viewport changes.
+// 画面サイズや構造系の設定が変わったら、雨全体を作り直す。
 function resize() {
   dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
   width = window.innerWidth;
@@ -449,7 +449,7 @@ function resetRain() {
   paintBackground(s);
 }
 
-// Canvas drawing helpers for background, glyphs, flash, residue, and head.
+// 背景・文字・四角い光・残像・先頭文字をCanvasに描画する。
 function paintBackground(s) {
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
@@ -545,7 +545,7 @@ function drawColumn(column, s, layer) {
   ctx.globalAlpha = 1;
 }
 
-// Advance residue fade, glyph flicker, and head typing for each column.
+// 残像のフェード、残像文字の変化、先頭文字のタイプ進行を更新する。
 function animateColumnEffects(column, elapsedSeconds, s) {
   column.flashes = column.flashes
     .map((flash) => ({ ...flash, life: flash.life - elapsedSeconds }))
@@ -623,7 +623,7 @@ function stepColumn(column, s, layer, index, elapsedSeconds) {
   }
 }
 
-// Main simulation tick. Drawing uses cached settings for frame-time stability.
+// シミュレーション本体。描画中はキャッシュ済み設定を使って負荷を抑える。
 function tickRain(elapsedSeconds = 1 / 30) {
   const s = currentSettings();
   paintBackground(s);
@@ -658,7 +658,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-// UI commands and settings import/export.
+// UI操作、設定の保存・読み込み、プリセット操作を扱う。
 function randomize() {
   const palettes = [
     ["#00ff66", "#ddffdd", "#000000"],
@@ -706,7 +706,7 @@ function normalizeSpeedBounds() {
   }
 }
 
-// File download and media export helpers.
+// ファイルのダウンロードと画像・動画の出力処理。
 function downloadBlob(blob, fileName) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -931,7 +931,7 @@ async function exportGif() {
   }
 }
 
-// GIF encoder helpers. The LZW path favors small code over maximum compression.
+// GIFエンコード処理。LZW部分は圧縮率より実装の単純さを優先している。
 function encodeGif(frames, delay) {
   const width = frames[0].width;
   const height = frames[0].height;
@@ -1054,7 +1054,7 @@ function writeSubBlocks(bytes, data) {
   bytes.push(0);
 }
 
-// Wire controls after all functions are defined.
+// 関数定義が終わった後で、UIイベントをまとめて接続する。
 [
   controls.fontSize,
   controls.density,
