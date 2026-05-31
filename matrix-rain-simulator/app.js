@@ -451,6 +451,33 @@ function paintBackground(s) {
   ctx.shadowBlur = 0;
   ctx.fillStyle = s.backgroundColor;
   ctx.fillRect(0, 0, width, height);
+  paintBackgroundHaze(s);
+}
+
+function paintBackgroundHaze(s) {
+  const hazeColor = colorToCss(mix(s.backgroundRgb, s.textRgb, 0.28));
+  const radiusBase = Math.max(width, height);
+  const accents = [
+    [width * 0.18, height * 0.24, radiusBase * 0.34, 0.05],
+    [width * 0.74, height * 0.38, radiusBase * 0.42, 0.04],
+    [width * 0.46, height * 0.78, radiusBase * 0.5, 0.035],
+  ];
+
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  accents.forEach(([x, y, radius, alpha]) => {
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    gradient.addColorStop(0, `rgba(${s.textRgb[0]}, ${s.textRgb[1]}, ${s.textRgb[2]}, ${alpha})`);
+    gradient.addColorStop(0.42, `rgba(${s.textRgb[0]}, ${s.textRgb[1]}, ${s.textRgb[2]}, ${alpha * 0.34})`);
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+  });
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 0.035;
+  ctx.fillStyle = hazeColor;
+  ctx.fillRect(0, 0, width, height);
+  ctx.restore();
 }
 
 function prepareText(layer, s) {
