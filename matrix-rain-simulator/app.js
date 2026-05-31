@@ -220,6 +220,24 @@ function updateControlValues() {
   });
 }
 
+// range入力にデフォルト値の目盛りを追加する。
+function attachDefaultTicks() {
+  Object.entries(defaultConfig).forEach(([key, value]) => {
+    const control = controls[key];
+    if (!control || control.type !== "range") return;
+    const listId = `${key}DefaultTick`;
+    let list = document.getElementById(listId);
+    if (!list) {
+      list = document.createElement("datalist");
+      list.id = listId;
+      document.body.appendChild(list);
+    }
+    list.innerHTML = "";
+    list.appendChild(new Option("", value));
+    control.setAttribute("list", listId);
+  });
+}
+
 // テキストエリアの内容から、雨に使う文字列パターンを作る。
 function buildCharacterPatterns() {
   const custom = controls.characters.value.trim();
@@ -1185,6 +1203,7 @@ document.body.addEventListener("click", togglePanel);
 document.addEventListener("fullscreenchange", syncFullscreenButton);
 window.addEventListener("resize", resize);
 
+attachDefaultTicks();
 applyConfig(defaultConfig);
 resize();
 if (document.fonts && document.fonts.load) {
