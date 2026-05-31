@@ -712,8 +712,10 @@ function downloadBlob(blob, fileName) {
   const link = document.createElement("a");
   link.href = url;
   link.download = fileName;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function collectConfig() {
@@ -722,13 +724,47 @@ function collectConfig() {
   );
 }
 
+function clampNumber(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, number));
+}
+
+function normalizeBoolean(value, fallback = false) {
+  if (typeof value === "boolean") return value;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return fallback;
+}
+
+function normalizeConfigValue(key, value) {
+  const control = controls[key];
+  const fallback = defaultConfig[key];
+  if (!control) return fallback;
+  if (control.type === "checkbox") return normalizeBoolean(value, Boolean(fallback));
+  if (control.type === "range") {
+    const min = Number(control.min);
+    const max = Number(control.max);
+    return String(clampNumber(value, min, max, Number(fallback)));
+  }
+  if (control.type === "color") {
+    return /^#[0-9a-f]{6}$/i.test(String(value)) ? String(value) : fallback;
+  }
+  if (control.tagName === "SELECT") {
+    const hasOption = Array.from(control.options).some((option) => option.value === String(value));
+    return hasOption ? String(value) : fallback;
+  }
+  return typeof value === "string" ? value : String(fallback);
+}
+
 function applyConfig(config) {
   settingKeys.forEach((key) => {
-    if (!(key in config) || !controls[key]) return;
+    if (!controls[key]) return;
+    const value = normalizeConfigValue(key, key in config ? config[key] : defaultConfig[key]);
     if (controls[key].type === "checkbox") {
-      controls[key].checked = Boolean(config[key]);
+      controls[key].checked = value;
     } else {
-      controls[key].value = config[key];
+      controls[key].value = value;
     }
   });
   normalizeSpeedBounds();
