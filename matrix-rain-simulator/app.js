@@ -137,6 +137,8 @@ let lastFrame = performance.now();
 let accumulator = 0;
 let isExportingGif = false;
 let cachedSettings = null;
+let hazeCanvas = null;
+let hazeKey = "";
 
 // UIの値を読み取り、描画処理で使いやすい形に正規化する。
 function settings() {
@@ -430,6 +432,7 @@ function resize() {
   dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
   width = window.innerWidth;
   height = window.innerHeight;
+  hazeKey = "";
   canvas.width = Math.floor(width * dpr);
   canvas.height = Math.floor(height * dpr);
   canvas.style.width = `${width}px`;
@@ -455,29 +458,42 @@ function paintBackground(s) {
 }
 
 function paintBackgroundHaze(s) {
+  const key = `${width}x${height}:${s.backgroundColor}:${s.textColor}`;
+  if (!hazeCanvas || hazeKey !== key) {
+    hazeCanvas = createBackgroundHazeCanvas(s);
+    hazeKey = key;
+  }
+  ctx.drawImage(hazeCanvas, 0, 0, width, height);
+}
+
+function createBackgroundHazeCanvas(s) {
+  const haze = document.createElement("canvas");
+  const scale = 0.25;
+  haze.width = Math.max(1, Math.round(width * scale));
+  haze.height = Math.max(1, Math.round(height * scale));
+  const hazeCtx = haze.getContext("2d");
   const hazeColor = colorToCss(mix(s.backgroundRgb, s.textRgb, 0.28));
-  const radiusBase = Math.max(width, height);
+  const radiusBase = Math.max(haze.width, haze.height);
   const accents = [
-    [width * 0.18, height * 0.24, radiusBase * 0.34, 0.05],
-    [width * 0.74, height * 0.38, radiusBase * 0.42, 0.04],
-    [width * 0.46, height * 0.78, radiusBase * 0.5, 0.035],
+    [haze.width * 0.18, haze.height * 0.24, radiusBase * 0.34, 0.05],
+    [haze.width * 0.74, haze.height * 0.38, radiusBase * 0.42, 0.04],
+    [haze.width * 0.46, haze.height * 0.78, radiusBase * 0.5, 0.035],
   ];
 
-  ctx.save();
-  ctx.globalCompositeOperation = "screen";
+  hazeCtx.globalCompositeOperation = "screen";
   accents.forEach(([x, y, radius, alpha]) => {
-    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    const gradient = hazeCtx.createRadialGradient(x, y, 0, x, y, radius);
     gradient.addColorStop(0, `rgba(${s.textRgb[0]}, ${s.textRgb[1]}, ${s.textRgb[2]}, ${alpha})`);
     gradient.addColorStop(0.42, `rgba(${s.textRgb[0]}, ${s.textRgb[1]}, ${s.textRgb[2]}, ${alpha * 0.34})`);
     gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
+    hazeCtx.fillStyle = gradient;
+    hazeCtx.fillRect(0, 0, haze.width, haze.height);
   });
-  ctx.globalCompositeOperation = "source-over";
-  ctx.globalAlpha = 0.035;
-  ctx.fillStyle = hazeColor;
-  ctx.fillRect(0, 0, width, height);
-  ctx.restore();
+  hazeCtx.globalCompositeOperation = "source-over";
+  hazeCtx.globalAlpha = 0.035;
+  hazeCtx.fillStyle = hazeColor;
+  hazeCtx.fillRect(0, 0, haze.width, haze.height);
+  return haze;
 }
 
 function prepareText(layer, s) {
