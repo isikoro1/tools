@@ -73,7 +73,7 @@ const fixedMotionSettings = {
   speedMin: 7,
   speedMax: 30,
   density: 0.54,
-  frequency: 0.3,
+  frequency: 1,
   trail: 25,
   rowSpacing: 0.35,
   variance: 0.9,
@@ -422,7 +422,7 @@ function makeColumn(index, s, layer, spreadStart, activeCount) {
   const varianceMin = Math.max(0.02, 1 - s.variance * 0.95);
   const varianceMax = 1 + s.variance * 2.8;
   const rowCount = Math.ceil(flowExtent(s) / layer.rowStep) + 4;
-  const startDelay = spreadStart ? Math.floor(randomBetween(0, rowCount * 1.6)) : Math.floor(randomBetween(0, 8));
+  const startDelay = spreadStart ? Math.floor(randomBetween(0, Math.min(18, rowCount * 0.35))) : Math.floor(randomBetween(0, 8));
   const baseCps = randomBetween(s.speedMin, s.speedMax);
   const varianceFactor = varianceMin + (varianceMax - varianceMin) * distributionSample(s.varianceMode);
   const minVisibleCps = Math.max(1.2, s.speedMin * 0.35 * layer.speedScale);
