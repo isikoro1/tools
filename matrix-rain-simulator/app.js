@@ -71,7 +71,7 @@ const fixedGlowSettings = {
 // UIには出さず、標準の雨らしさと軽さを両立する固定モーション設定。
 const fixedMotionSettings = {
   speedMin: 7,
-  speedMax: 30,
+  speedMax: 50,
   density: 0.54,
   frequency: 1,
   trail: 25,
