@@ -16,9 +16,6 @@ const controls = {
   displayLimit: document.querySelector("#displayLimit"),
   direction: document.querySelector("#direction"),
   characterOrder: document.querySelector("#characterOrder"),
-  fontWeight: document.querySelector("#fontWeight"),
-  depth: document.querySelector("#depth"),
-  depthStrength: document.querySelector("#depthStrength"),
   textColor: document.querySelector("#textColor"),
   headColor: document.querySelector("#headColor"),
   backgroundColor: document.querySelector("#backgroundColor"),
@@ -44,12 +41,9 @@ const settingKeys = [
   "characters",
   "characterPreset",
   "fontSize",
-  "fontWeight",
   "displayLimit",
   "direction",
   "characterOrder",
-  "depth",
-  "depthStrength",
   "textColor",
   "headColor",
   "backgroundColor",
@@ -80,17 +74,21 @@ const fixedMotionSettings = {
   varianceMode: "uniform",
 };
 
+// UIには出さず、画面の立体感と文字の見え方を決める固定表示設定。
+const fixedVisualSettings = {
+  fontWeight: 700,
+  depth: 5,
+  depthStrength: 0.36,
+};
+
 // Dボタンや設定リセットで使う初期値。
 const defaultConfig = {
   characters: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
   characterPreset: "default",
   fontSize: "18",
-  fontWeight: "700",
   displayLimit: "30",
   direction: "down",
   characterOrder: "random",
-  depth: "5",
-  depthStrength: "36",
   textColor: "#00ff66",
   headColor: "#ddffdd",
   backgroundColor: "#000000",
@@ -135,7 +133,7 @@ let cachedSettings = null;
 function settings() {
   return {
     fontSize: Number(controls.fontSize.value),
-    fontWeight: Number(controls.fontWeight.value),
+    fontWeight: fixedVisualSettings.fontWeight,
     speedMin: fixedMotionSettings.speedMin,
     speedMax: fixedMotionSettings.speedMax,
     density: fixedMotionSettings.density,
@@ -145,8 +143,8 @@ function settings() {
     direction: controls.direction.value,
     characterOrder: controls.characterOrder.value,
     rowSpacing: fixedMotionSettings.rowSpacing,
-    depth: Number(controls.depth.value),
-    depthStrength: Number(controls.depthStrength.value) / 100,
+    depth: fixedVisualSettings.depth,
+    depthStrength: fixedVisualSettings.depthStrength,
     variance: fixedMotionSettings.variance,
     varianceMode: fixedMotionSettings.varianceMode,
     glow: fixedGlowSettings.glow,
@@ -698,11 +696,9 @@ function randomize() {
   controls.headColor.value = palette[1];
   controls.backgroundColor.value = palette[2];
   controls.fontSize.value = String(12 + Math.floor(Math.random() * 17));
-  controls.displayLimit.value = String(12 + Math.floor(Math.random() * 46));
+  controls.displayLimit.value = String(8 + Math.floor(Math.random() * 31));
   controls.direction.value = "down";
   controls.characterOrder.value = ["random", "random", "sequence", "reverse"][Math.floor(Math.random() * 4)];
-  controls.depth.value = String(1 + Math.floor(Math.random() * 3));
-  controls.depthStrength.value = String(12 + Math.floor(Math.random() * 36));
   updateControlValues();
   resetRain();
 }
@@ -1124,9 +1120,6 @@ function writeSubBlocks(bytes, data) {
   controls.displayLimit,
   controls.direction,
   controls.characterOrder,
-  controls.fontWeight,
-  controls.depth,
-  controls.depthStrength,
   controls.characters,
   controls.backgroundColor,
 ].forEach((control) => control.addEventListener("input", resetRain));
