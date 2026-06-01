@@ -64,7 +64,7 @@ const fixedMotionSettings = {
   speedMax: 50,
   density: 0.54,
   frequency: 1,
-  trail: 25,
+  trail: 16,
   rowSpacing: 0.35,
   variance: 0.9,
   varianceMode: "uniform",
@@ -82,7 +82,7 @@ const defaultConfig = {
   characters: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
   characterPreset: "default",
   fontSize: "18",
-  displayLimit: "30",
+  displayLimit: "15",
   direction: "down",
   characterOrder: "random",
   textColor: "#00ff66",
@@ -397,12 +397,11 @@ function countActiveColumns() {
 function makeColumn(index, s, layer, spreadStart, activeCount) {
   const varianceMin = Math.max(0.02, 1 - s.variance * 0.95);
   const varianceMax = 1 + s.variance * 2.8;
-  const rowCount = Math.ceil(flowExtent(s) / layer.rowStep) + 4;
-  const startDelay = spreadStart ? Math.floor(randomBetween(0, Math.min(18, rowCount * 0.35))) : Math.floor(randomBetween(0, 8));
   const baseCps = randomBetween(s.speedMin, s.speedMax);
   const varianceFactor = varianceMin + (varianceMax - varianceMin) * distributionSample(s.varianceMode);
   const minVisibleCps = Math.max(1.2, s.speedMin * 0.35 * layer.speedScale);
   const cps = Math.max(minVisibleCps, baseCps * varianceFactor * layer.speedScale * s.frequency);
+  const startDelay = spreadStart ? Math.floor(Math.pow(Math.random(), 0.75) * 3.2 * cps) : Math.floor(randomBetween(0, 8));
   const pattern = s.characterPatterns[Math.floor(Math.random() * s.characterPatterns.length)] || "\uff10";
   const charIndex = Math.floor(Math.random() * Array.from(pattern).length);
 
@@ -674,7 +673,7 @@ function randomize() {
   controls.headColor.value = palette[1];
   controls.backgroundColor.value = palette[2];
   controls.fontSize.value = String(12 + Math.floor(Math.random() * 17));
-  controls.displayLimit.value = String(8 + Math.floor(Math.random() * 31));
+  controls.displayLimit.value = String(6 + Math.floor(Math.random() * 19));
   controls.direction.value = "down";
   controls.characterOrder.value = ["random", "random", "sequence", "reverse"][Math.floor(Math.random() * 4)];
   updateControlValues();
