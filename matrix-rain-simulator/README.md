@@ -5,7 +5,7 @@ Canvasでマトリックス風の文字雨を生成できる静的Webツール�
 ## 主な機能
 
 - 文字プリセット切り替え
-- カスタム文字入力とカスタムプリセット保存
+- カスタム文字入力とJSON保存
 - 文字サイズ、文字列上限、方向、文字順、色の調整
 - PNG出力
 - GIF出力
@@ -20,7 +20,6 @@ Canvasでマトリックス風の文字雨を生成できる静的Webツール�
 - Vanilla JavaScript
 - Canvas API
 - MediaRecorder API
-- localStorage
 
 ## 使い方
 

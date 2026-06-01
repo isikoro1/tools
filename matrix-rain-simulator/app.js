@@ -8,10 +8,6 @@ const ctx = canvas.getContext("2d");
 const controls = {
   characters: document.querySelector("#characters"),
   characterPreset: document.querySelector("#characterPreset"),
-  customPresetName: document.querySelector("#customPresetName"),
-  addPresetBtn: document.querySelector("#addPresetBtn"),
-  updatePresetBtn: document.querySelector("#updatePresetBtn"),
-  deletePresetBtn: document.querySelector("#deletePresetBtn"),
   fontSize: document.querySelector("#fontSize"),
   displayLimit: document.querySelector("#displayLimit"),
   direction: document.querySelector("#direction"),
@@ -117,7 +113,6 @@ const builtInPresets = {
   gal: "\u3061\u3087w\n\u30a6\u30b1\u308b\n\u30de\u30b8\u534d\n\u30de\u30b8\u30d1\u306a\u3044\n\u30d1\u30e9\u30d1\u30e9",
   war: "\u304d\u306e\u3053\n\u305f\u3051\u306e\u3053",
 };
-let customPresets = loadCustomPresets();
 
 // フレームループ全体で共有するCanvasとアニメーションの状態。
 let width = 0;
@@ -234,26 +229,12 @@ function buildCharacterPatterns() {
     .filter(Boolean);
 }
 
-// カスタムプリセットはブラウザ内のlocalStorageに保存する。
+// 文字プリセット一覧を返す。ユーザー独自設定はJSON保存で扱う。
 function allPresets() {
-  return { ...builtInPresets, ...customPresets };
+  return builtInPresets;
 }
 
-// localStorageからカスタムプリセットを読み込む。
-function loadCustomPresets() {
-  try {
-    return JSON.parse(localStorage.getItem("matrixRainCustomPresets") || "{}");
-  } catch {
-    return {};
-  }
-}
-
-// カスタムプリセットをlocalStorageへ保存する。
-function saveCustomPresets() {
-  localStorage.setItem("matrixRainCustomPresets", JSON.stringify(customPresets));
-}
-
-// 標準プリセットとカスタムプリセットをselectへ反映する。
+// 標準プリセットをselectへ反映する。
 function renderPresetOptions(selected = controls.characterPreset.value) {
   const labels = {
     default: "\u30c7\u30d5\u30a9\u30eb\u30c8",
@@ -276,9 +257,6 @@ function renderPresetOptions(selected = controls.characterPreset.value) {
   controls.characterPreset.innerHTML = '<option value="">Custom</option>';
   Object.keys(builtInPresets).forEach((key) => {
     controls.characterPreset.add(new Option(labels[key] || key, key));
-  });
-  Object.keys(customPresets).sort().forEach((key) => {
-    controls.characterPreset.add(new Option(`Custom: ${key.replace(/^custom:/, "")}`, key));
   });
   controls.characterPreset.value = selected in allPresets() ? selected : "";
 }
@@ -835,54 +813,6 @@ function applyCharacterPreset() {
   resetRain();
 }
 
-// カスタムプリセット名から保存用キーを作る。
-function customPresetKey() {
-  const name = controls.customPresetName.value.trim();
-  if (!name) return "";
-  return `custom:${name}`;
-}
-
-// 現在の文字入力を新しいカスタムプリセットとして保存する。
-function addCustomPreset() {
-  const key = customPresetKey();
-  if (!key) {
-    controls.exportStatus.textContent = "Preset name required";
-    return;
-  }
-  customPresets[key] = controls.characters.value;
-  saveCustomPresets();
-  renderPresetOptions(key);
-  controls.characterPreset.value = key;
-  controls.exportStatus.textContent = "Preset added";
-}
-
-// 選択中または入力名に対応するカスタムプリセットを更新する。
-function updateCustomPreset() {
-  const key = controls.characterPreset.value.startsWith("custom:") ? controls.characterPreset.value : customPresetKey();
-  if (!key || !customPresets[key]) {
-    controls.exportStatus.textContent = "Select custom preset";
-    return;
-  }
-  customPresets[key] = controls.characters.value;
-  saveCustomPresets();
-  renderPresetOptions(key);
-  controls.exportStatus.textContent = "Preset updated";
-}
-
-// 選択中のカスタムプリセットを削除する。
-function deleteCustomPreset() {
-  const key = controls.characterPreset.value;
-  if (!key.startsWith("custom:") || !customPresets[key]) {
-    controls.exportStatus.textContent = "Select custom preset";
-    return;
-  }
-  delete customPresets[key];
-  saveCustomPresets();
-  renderPresetOptions("");
-  controls.characterPreset.value = "";
-  controls.exportStatus.textContent = "Preset deleted";
-}
-
 // 現在のCanvas表示をPNGとして保存する。
 function exportPng() {
   canvas.toBlob((blob) => {
@@ -1128,9 +1058,6 @@ function writeSubBlocks(bytes, data) {
   controls.headColor,
 ].forEach((control) => control.addEventListener("input", refreshSettings));
 controls.characterPreset.addEventListener("change", applyCharacterPreset);
-controls.addPresetBtn.addEventListener("click", addCustomPreset);
-controls.updatePresetBtn.addEventListener("click", updateCustomPreset);
-controls.deletePresetBtn.addEventListener("click", deleteCustomPreset);
 
 controls.fullscreenBtn.addEventListener("click", toggleFullscreen);
 controls.defaultBtn.addEventListener("click", resetDefaults);
