@@ -795,9 +795,9 @@ function loadJson(file) {
   reader.addEventListener("load", () => {
     try {
       applyConfig(JSON.parse(String(reader.result)));
-      controls.exportStatus.textContent = "JSON loaded";
+      controls.exportStatus.textContent = "Data uploaded";
     } catch {
-      controls.exportStatus.textContent = "JSON load failed";
+      controls.exportStatus.textContent = "Data upload failed";
     }
   });
   reader.readAsText(file);
