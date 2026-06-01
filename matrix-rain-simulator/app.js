@@ -13,20 +13,12 @@ const controls = {
   updatePresetBtn: document.querySelector("#updatePresetBtn"),
   deletePresetBtn: document.querySelector("#deletePresetBtn"),
   fontSize: document.querySelector("#fontSize"),
-  speedMin: document.querySelector("#speedMin"),
-  speedMax: document.querySelector("#speedMax"),
-  density: document.querySelector("#density"),
-  frequency: document.querySelector("#frequency"),
   displayLimit: document.querySelector("#displayLimit"),
-  trail: document.querySelector("#trail"),
   direction: document.querySelector("#direction"),
   characterOrder: document.querySelector("#characterOrder"),
-  rowSpacing: document.querySelector("#rowSpacing"),
   fontWeight: document.querySelector("#fontWeight"),
   depth: document.querySelector("#depth"),
   depthStrength: document.querySelector("#depthStrength"),
-  variance: document.querySelector("#variance"),
-  varianceMode: document.querySelector("#varianceMode"),
   textColor: document.querySelector("#textColor"),
   headColor: document.querySelector("#headColor"),
   backgroundColor: document.querySelector("#backgroundColor"),
@@ -53,19 +45,11 @@ const settingKeys = [
   "characterPreset",
   "fontSize",
   "fontWeight",
-  "speedMin",
-  "speedMax",
-  "density",
-  "frequency",
   "displayLimit",
-  "trail",
   "direction",
   "characterOrder",
-  "rowSpacing",
   "depth",
   "depthStrength",
-  "variance",
-  "varianceMode",
   "textColor",
   "headColor",
   "backgroundColor",
@@ -84,25 +68,29 @@ const fixedGlowSettings = {
   glyphBlur: 7,
 };
 
+// UIには出さず、標準の雨らしさと軽さを両立する固定モーション設定。
+const fixedMotionSettings = {
+  speedMin: 7,
+  speedMax: 30,
+  density: 0.54,
+  frequency: 0.3,
+  trail: 25,
+  rowSpacing: 0.35,
+  variance: 0.9,
+  varianceMode: "uniform",
+};
+
 // Dボタンや設定リセットで使う初期値。
 const defaultConfig = {
   characters: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\u30a2\u30a4\u30a6\u30a8\u30aa\u30ab\u30ad\u30af\u30b1\u30b3\u30b5\u30b7\u30b9\u30bb\u30bd\u30bf\u30c1\u30c4\u30c6\u30c8\u30ca\u30cb\u30cc\u30cd\u30ce",
   characterPreset: "default",
   fontSize: "18",
   fontWeight: "700",
-  speedMin: "7",
-  speedMax: "30",
-  density: "54",
-  frequency: "30",
   displayLimit: "30",
-  trail: "25",
   direction: "down",
   characterOrder: "random",
-  rowSpacing: "35",
   depth: "5",
   depthStrength: "36",
-  variance: "90",
-  varianceMode: "uniform",
   textColor: "#00ff66",
   headColor: "#ddffdd",
   backgroundColor: "#000000",
@@ -145,24 +133,22 @@ let cachedSettings = null;
 
 // UIの値を読み取り、描画処理で使いやすい形に正規化する。
 function settings() {
-  const speedMin = Number(controls.speedMin.value);
-  const speedMax = Math.max(speedMin, Number(controls.speedMax.value));
   return {
     fontSize: Number(controls.fontSize.value),
     fontWeight: Number(controls.fontWeight.value),
-    speedMin,
-    speedMax,
-    density: Number(controls.density.value) / 100,
-    frequency: Number(controls.frequency.value) / 100,
+    speedMin: fixedMotionSettings.speedMin,
+    speedMax: fixedMotionSettings.speedMax,
+    density: fixedMotionSettings.density,
+    frequency: fixedMotionSettings.frequency,
     displayLimit: Number(controls.displayLimit.value),
-    trail: Number(controls.trail.value),
+    trail: fixedMotionSettings.trail,
     direction: controls.direction.value,
     characterOrder: controls.characterOrder.value,
-    rowSpacing: Math.max(8, Number(controls.rowSpacing.value)) / 100,
+    rowSpacing: fixedMotionSettings.rowSpacing,
     depth: Number(controls.depth.value),
     depthStrength: Number(controls.depthStrength.value) / 100,
-    variance: Number(controls.variance.value) / 100,
-    varianceMode: controls.varianceMode.value,
+    variance: fixedMotionSettings.variance,
+    varianceMode: fixedMotionSettings.varianceMode,
     glow: fixedGlowSettings.glow,
     glyphGlow: fixedGlowSettings.glyphGlow,
     glyphBlur: fixedGlowSettings.glyphBlur,
@@ -712,33 +698,17 @@ function randomize() {
   controls.headColor.value = palette[1];
   controls.backgroundColor.value = palette[2];
   controls.fontSize.value = String(12 + Math.floor(Math.random() * 17));
-  controls.speedMin.value = String(4 + Math.floor(Math.random() * 8));
-  controls.speedMax.value = String(12 + Math.floor(Math.random() * 18));
-  controls.density.value = String(8 + Math.floor(Math.random() * 36));
-  controls.frequency.value = String(42 + Math.floor(Math.random() * 62));
   controls.displayLimit.value = String(12 + Math.floor(Math.random() * 46));
-  controls.trail.value = String(12 + Math.floor(Math.random() * 19));
   controls.direction.value = "down";
   controls.characterOrder.value = ["random", "random", "sequence", "reverse"][Math.floor(Math.random() * 4)];
-  controls.rowSpacing.value = String(18 + Math.floor(Math.random() * 46));
   controls.depth.value = String(1 + Math.floor(Math.random() * 3));
   controls.depthStrength.value = String(12 + Math.floor(Math.random() * 36));
-  controls.variance.value = String(20 + Math.floor(Math.random() * 70));
-  controls.varianceMode.value = ["uniform", "center", "extreme", "slow", "fast"][Math.floor(Math.random() * 5)];
-  normalizeSpeedBounds();
   updateControlValues();
   resetRain();
 }
 
 function togglePanel() {
   document.body.classList.toggle("config-hidden");
-}
-
-// 最小速度が最大速度を超えないようにUI値を補正する。
-function normalizeSpeedBounds() {
-  if (Number(controls.speedMin.value) > Number(controls.speedMax.value)) {
-    controls.speedMax.value = controls.speedMin.value;
-  }
 }
 
 // ファイルのダウンロードと画像・動画の出力処理。
@@ -806,7 +776,6 @@ function applyConfig(config) {
       controls[key].value = value;
     }
   });
-  normalizeSpeedBounds();
   renderPresetOptions(config.characterPreset || "");
   updateControlValues();
   resetRain();
@@ -1152,18 +1121,12 @@ function writeSubBlocks(bytes, data) {
 // 関数定義が終わった後で、UIイベントをまとめて接続する。
 [
   controls.fontSize,
-  controls.density,
-  controls.frequency,
   controls.displayLimit,
-  controls.trail,
   controls.direction,
   controls.characterOrder,
-  controls.rowSpacing,
   controls.fontWeight,
   controls.depth,
   controls.depthStrength,
-  controls.variance,
-  controls.varianceMode,
   controls.characters,
   controls.backgroundColor,
 ].forEach((control) => control.addEventListener("input", resetRain));
@@ -1176,14 +1139,6 @@ controls.addPresetBtn.addEventListener("click", addCustomPreset);
 controls.updatePresetBtn.addEventListener("click", updateCustomPreset);
 controls.deletePresetBtn.addEventListener("click", deleteCustomPreset);
 
-controls.speedMin.addEventListener("input", () => {
-  normalizeSpeedBounds();
-  resetRain();
-});
-controls.speedMax.addEventListener("input", () => {
-  normalizeSpeedBounds();
-  resetRain();
-});
 controls.fullscreenBtn.addEventListener("click", toggleFullscreen);
 controls.defaultBtn.addEventListener("click", resetDefaults);
 controls.randomizeBtn.addEventListener("click", randomize);
