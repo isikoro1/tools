@@ -66,8 +66,8 @@ const fixedMotionSettings = {
   frequency: 1,
   trail: 16,
   rowSpacing: 0.35,
-  variance: 0.9,
-  varianceMode: "uniform",
+  variance: 1.15,
+  varianceMode: "extreme",
 };
 
 // UIには出さず、画面の立体感と文字の見え方を決める固定表示設定。
