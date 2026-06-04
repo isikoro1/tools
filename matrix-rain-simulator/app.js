@@ -73,8 +73,8 @@ const fixedMotionSettings = {
 // UIには出さず、画面の立体感と文字の見え方を決める固定表示設定。
 const fixedVisualSettings = {
   fontWeight: 700,
-  depth: 5,
-  depthStrength: 0.36,
+  depth: 7,
+  depthStrength: 0.48,
 };
 
 // Dボタンや設定リセットで使う初期値。
@@ -328,7 +328,7 @@ function distributionSample(mode) {
   const a = Math.random();
   const b = Math.random();
   if (mode === "center") return (a + b + Math.random()) / 3;
-  if (mode === "extreme") return a < 0.7 ? Math.pow(b, 2) * 0.5 : 1 - Math.pow(b, 2) * 0.5;
+  if (mode === "extreme") return a < 0.82 ? Math.pow(b, 2) * 0.5 : 1 - Math.pow(b, 2) * 0.5;
   if (mode === "slow") return Math.pow(a, 2);
   if (mode === "fast") return 1 - Math.pow(1 - a, 2);
   return a;
@@ -382,7 +382,7 @@ function shouldSkipColumn(cps, s, layer, activeCount) {
   const speedRatio = speedRatioForColumn(cps, s, layer);
   const densityChance = Math.min(0.72, s.density * 0.58);
   const slowGate = 0.04 + speedRatio * 0.96;
-  const highSpeedGate = speedRatio > 0.82 ? Math.max(0.45, 1 - (speedRatio - 0.82) * 2.8) : 1;
+  const highSpeedGate = speedRatio > 0.76 ? Math.max(0.25, 1 - (speedRatio - 0.76) * 3.2) : 1;
   return Math.random() > densityChance * slowGate * highSpeedGate;
 }
 
