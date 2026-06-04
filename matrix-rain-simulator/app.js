@@ -362,7 +362,7 @@ function makeLayer(layerIndex, s) {
   layer.columns = [];
   for (let index = 0; index < count; index += 1) {
     const activeCount = countActiveColumns() + layer.columns.filter((column) => !column.skip).length;
-    layer.columns.push(makeColumn(index, s, layer, true, activeCount));
+    layer.columns.push(makeColumn(index, s, layer, true, activeCount, count));
   }
   return layer;
 }
@@ -394,15 +394,26 @@ function countActiveColumns() {
   );
 }
 
+// 初期表示時だけ列ごとの開始タイミングを広く散らす。
+function initialStartDelay(cps, index, totalColumns) {
+  const laneRatio = totalColumns > 0 ? index / totalColumns : Math.random();
+  const spreadRatio = (laneRatio + Math.random() * 0.72) % 1;
+  const earlyStart = Math.random() < 0.18;
+  const minSeconds = earlyStart ? 0 : 1.1;
+  const maxSeconds = earlyStart ? 1.4 : 8.2;
+  const seconds = minSeconds + Math.pow(spreadRatio, 0.82) * (maxSeconds - minSeconds);
+  return Math.floor(seconds * cps);
+}
+
 // 1つの列は、タイプされる先頭文字・固定残像・発光エフェクトを持つ。
-function makeColumn(index, s, layer, spreadStart, activeCount) {
+function makeColumn(index, s, layer, spreadStart, activeCount, totalColumns = 0) {
   const varianceMin = Math.max(0.02, 1 - s.variance * 0.95);
   const varianceMax = 1 + s.variance * 2.8;
   const baseCps = randomBetween(s.speedMin, s.speedMax);
   const varianceFactor = varianceMin + (varianceMax - varianceMin) * distributionSample(s.varianceMode);
   const minVisibleCps = Math.max(1.2, s.speedMin * 0.35 * layer.speedScale);
   const cps = Math.max(minVisibleCps, baseCps * varianceFactor * layer.speedScale * s.frequency);
-  const startDelay = spreadStart ? Math.floor(Math.pow(Math.random(), 0.75) * 3.2 * cps) : Math.floor(randomBetween(0, 8));
+  const startDelay = spreadStart ? initialStartDelay(cps, index, totalColumns) : Math.floor(randomBetween(0, 8));
   const pattern = s.characterPatterns[Math.floor(Math.random() * s.characterPatterns.length)] || "\uff10";
   const charIndex = Math.floor(Math.random() * Array.from(pattern).length);
 
