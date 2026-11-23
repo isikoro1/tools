@@ -24,6 +24,6 @@ content, style or logic edits.
 
 The canonical source is this directory in isikoro1/tools.
 The public app is https://tools.isikoro.dev/haskell-lab/.
-The existing Cloudflare deployment serves the repository's static assets.
+The existing automatic publication serves the repository's static assets.
 Check the public HTML and module files after a main-branch change.
 The earlier ChatGPT Sites copy is a separate snapshot.
